@@ -91,3 +91,12 @@ Each entry records the tool used and a sanitized paraphrase of the original quer
 **Evolution:** Node version had to be upgraded from 20.5.1 to 25.9.0 via asdf because Vitest 4 requires `node:util.styleText` which was unavailable in older releases. pnpm needed reinstalling under the new Node version.
 **Decision:** Used `.tool-versions` to pin Node 25.9.0 locally. Kept the scaffold minimal: Next.js 16 App Router, Tailwind, ESLint, Zod 4, Vitest 4, tsx, path aliases, `.env.example`, and empty directory structure for all bounded contexts.
 **Trade-off:** Pinning a non-LTS Node version adds a setup step for other contributors, but resolved all tooling compatibility issues cleanly.
+
+### Dataset and API Exploration — 2026-04-07
+
+**Tool:** Claude
+**Sanitized Query:** Explore the Proposales API to map native fields, identify missing metadata, and draft the enrichment schema before writing retrieval code.
+**Context:** The architecture assumes enrichment-first ingestion, but the actual API payload shape had not been verified against live endpoints.
+**Evolution:** The API documentation and live responses confirmed the hypothesis: content items are title + description + images only. No category, capacity, pricing, unit, amenity, or tag fields exist natively. The content library was empty, so all products must be seeded.
+**Decision:** Documented a complete field inventory, proposed enrichment schema with 9 category types and subtypes, defined retrieval text composition rules, normalization rules for capacity and pricing, alias mappings, and hard vs soft constraint classifications.
+**Trade-off:** The enrichment schema is designed before seeing real product descriptions, so the taxonomy may need adjustment after seeding. Starting from the API shape rather than assumptions reduces that risk.
