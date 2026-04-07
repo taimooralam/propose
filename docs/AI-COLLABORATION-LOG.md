@@ -100,3 +100,12 @@ Each entry records the tool used and a sanitized paraphrase of the original quer
 **Evolution:** The API documentation and live responses confirmed the hypothesis: content items are title + description + images only. No category, capacity, pricing, unit, amenity, or tag fields exist natively. The content library was empty, so all products must be seeded.
 **Decision:** Documented a complete field inventory, proposed enrichment schema with 9 category types and subtypes, defined retrieval text composition rules, normalization rules for capacity and pricing, alias mappings, and hard vs soft constraint classifications.
 **Trade-off:** The enrichment schema is designed before seeing real product descriptions, so the taxonomy may need adjustment after seeding. Starting from the API shape rather than assumptions reduces that risk.
+
+### Domain Contracts and Cross-Provider Review — 2026-04-07
+
+**Tool:** Claude + Codex
+**Sanitized Query:** Write Zod schemas for all pipeline data boundaries, then run adversarial review to find gaps before implementation starts.
+**Context:** The pipeline has 5 stages passing typed data between them. Schemas needed to be defined before any logic so tests and implementation have shared contracts.
+**Evolution:** Initial schemas were minimal and loosely typed. Cross-provider review identified 7 issues: the proposal block schema didn't model the real API entity, slot constraints were untyped, product schema mixed raw and enriched concerns, match results had parallel arrays instead of paired records, evaluation allowed invalid ranges, env was missing required keys, and IDs/capacities/prices lacked integer/non-negative constraints.
+**Decision:** All 7 findings were addressed: added `RawContent` for the API boundary, `ApiProposalBlock` + `CreateProposalPayload` for the Proposales API, `RankedCandidate` to pair products with scores, typed `GapReason` enum, `BudgetHint` as structured money, clamped evaluation ratios to 0-1, added `ANTHROPIC_API_KEY` and `PROPOSALES_COMPANY_ID` to env, and tightened all IDs to positive integers and capacities/prices to non-negative.
+**Trade-off:** Tighter schemas add parsing friction during development but catch invalid states at boundaries rather than deep in the pipeline.
