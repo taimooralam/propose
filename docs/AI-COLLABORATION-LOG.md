@@ -82,3 +82,12 @@ Each entry records the tool used and a sanitized paraphrase of the original quer
 **Evolution:** The initial impulse was to build all skills upfront so every phase uses them consistently. This was reconsidered against the roadmap principle of proving roles manually first.
 **Decision:** Proceed with scaffolding first (Phase 1). Skills will be promoted after Phase 2 when recurring patterns are clear.
 **Trade-off:** Early phases use manual prompts instead of structured skills, which is less consistent but avoids building skills that may not match the actual workflow.
+
+### Phase 1 Bootstrap — 2026-04-07
+
+**Tool:** Claude
+**Sanitized Query:** Scaffold the Next.js app with TypeScript, Vitest, Zod, and the project directory structure.
+**Context:** The project needed a working runtime and test harness before any domain code. The bootstrap had to match the stack decisions in the architecture doc.
+**Evolution:** Node version had to be upgraded from 20.5.1 to 25.9.0 via asdf because Vitest 4 requires `node:util.styleText` which was unavailable in older releases. pnpm needed reinstalling under the new Node version.
+**Decision:** Used `.tool-versions` to pin Node 25.9.0 locally. Kept the scaffold minimal: Next.js 16 App Router, Tailwind, ESLint, Zod 4, Vitest 4, tsx, path aliases, `.env.example`, and empty directory structure for all bounded contexts.
+**Trade-off:** Pinning a non-LTS Node version adds a setup step for other contributors, but resolved all tooling compatibility issues cleanly.
