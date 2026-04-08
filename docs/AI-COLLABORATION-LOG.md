@@ -109,3 +109,21 @@ Each entry records the tool used and a sanitized paraphrase of the original quer
 **Evolution:** Initial schemas were minimal and loosely typed. Cross-provider review identified 7 issues: the proposal block schema didn't model the real API entity, slot constraints were untyped, product schema mixed raw and enriched concerns, match results had parallel arrays instead of paired records, evaluation allowed invalid ranges, env was missing required keys, and IDs/capacities/prices lacked integer/non-negative constraints.
 **Decision:** All 7 findings were addressed: added `RawContent` for the API boundary, `ApiProposalBlock` + `CreateProposalPayload` for the Proposales API, `RankedCandidate` to pair products with scores, typed `GapReason` enum, `BudgetHint` as structured money, clamped evaluation ratios to 0-1, added `ANTHROPIC_API_KEY` and `PROPOSALES_COMPANY_ID` to env, and tightened all IDs to positive integers and capacities/prices to non-negative.
 **Trade-off:** Tighter schemas add parsing friction during development but catch invalid states at boundaries rather than deep in the pipeline.
+
+### Architecture Document Update — 2026-04-08
+
+**Tool:** Claude
+**Sanitized Query:** Update the architecture document to reflect verified API shape, enrichment schema, typed contracts, and retrieval design decisions.
+**Context:** The initial architecture doc was written before dataset exploration and schema definition. It described the system at a conceptual level but didn't reflect the actual API constraints, schema dependency graph, or typed gap handling.
+**Evolution:** The doc was rewritten to include the real API shape (title + description only, no structured fields), the enrichment requirement, the full Mermaid flow with model assignments per stage, the acyclic schema dependency graph, the 18-approach evaluation summary, the scale story (50 → 500 → 500K), and security considerations.
+**Decision:** Architecture doc now matches the implemented contracts exactly and can serve as a standalone system design reference.
+**Trade-off:** The doc is longer and more detailed, which increases maintenance burden if schemas change. But the detail makes the retrieval strategy and design rationale self-contained.
+
+### Architecture Adversarial Review — 2026-04-08
+
+**Tool:** Codex
+**Sanitized Query:** Review the architecture document for boundary leaks, speculative claims, missing runtime constraints, and mismatches with the actual schemas and API exploration.
+**Context:** The architecture doc had been updated after dataset exploration and schema definition, but needed adversarial validation before being treated as the system design reference.
+**Evolution:** Cross-provider review found 11 issues: the proposal section overstated modeled capabilities, PipelineRun lacked intermediate stage outputs, the retrieval field mapping was implicit, coverage semantics didn't account for optional slots, the API section hid the multilingual→flat transformation, scale claims used "current" for unbuilt features, EvalResult had untyped flags and no K parameter, gap recovery lacked a concrete relaxation strategy, runtime/cost budgets were absent, the Mermaid diagram didn't match PipelineStatus, and security claims exceeded actual implementation.
+**Decision:** All 11 findings were addressed. Schema fixes: added `EvalFlag` enum, `recall_k` to EvalResult, `generated_blocks` and `review` to PipelineRun. Doc fixes: split Mermaid into data flow + state machine diagrams, added slot-field-to-retrieval mapping table, specified gap recovery strategy (drop indoor/outdoor → widen capacity → broaden category, max 2 retries), defined coverage as required-slots-only, documented the multilingual flattening boundary, added operational constraints section with timeout/cost/rate-limit details, and made security claims honest about implemented vs planned.
+**Trade-off:** The architecture doc is now significantly longer but precisely matches what the schemas can express. Claims about unbuilt features are explicitly marked as planned.

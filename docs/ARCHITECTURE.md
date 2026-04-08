@@ -2,29 +2,61 @@
 
 ## System Summary
 
-The system ingests hotel products, enriches them into structured retrieval units, maps unstructured RFPs into requirement slots, retrieves candidate matches per slot, and uses those matches to drive proposal planning and generation.
+The system ingests hotel products, enriches them into structured retrieval units, maps unstructured RFPs into requirement slots, retrieves candidate matches per slot, and uses those matches to drive proposal planning and generation via the Proposales API.
 
 The core architectural choice is slot-based retrieval rather than whole-query document retrieval.
 
-## Core Flow
+## Data Flow
 
 ```mermaid
 flowchart TD
-    A[Product Source] --> B[Enrichment]
-    B --> C[Structured Catalog]
-    C --> D[Embedding + Retrieval Text]
-    D --> E[Retrieval Store]
+    A[Proposales Content API] --> B[RawContent — multilingual title/description maps]
+    B --> C[Language Flattening — select target language]
+    C --> D[LLM Enrichment — Haiku]
+    D --> E[EnrichedProduct — single-language flat strings]
+    E --> F[Retrieval Text + Embedding]
+    F --> G[Retrieval Store]
 
-    F[RFP Input] --> G[Slot Extraction]
-    G --> H[Constraint Normalization]
-    H --> I[Per-Slot Filtering]
-    E --> I
-    I --> J[Per-Slot Ranking]
-    J --> K[Coverage Check]
-    K --> L[Proposal Plan]
-    L --> M[Proposal Generation]
-    M --> N[Evaluation]
+    H[RFP Input] --> I[Slot Extraction — Haiku]
+    I --> J[RequirementSlot array]
+    J --> K[Per-Slot Hard Filter]
+    G --> K
+    K --> L[Per-Slot Dense Rank]
+    L --> M[RankedCandidate per slot]
+    M --> N[Coverage Check]
+    N -->|uncovered required slots| O[Constraint Relaxation + Retry]
+    O --> N
+    N -->|all required slots covered or max retries reached| P[CoverageReport]
+    P --> Q[Proposal Planning — Sonnet]
+    Q --> R[Block Generation — Sonnet]
+    R --> S[Assembly via POST /v3/proposals]
+    S --> T[Self-Review — Sonnet]
+    T --> U[Evaluation]
 ```
+
+## Pipeline State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending
+    pending --> extracting
+    extracting --> matching
+    matching --> planning
+    planning --> generating
+    generating --> assembling
+    assembling --> reviewing
+    reviewing --> evaluating
+    evaluating --> complete
+    extracting --> failed
+    matching --> failed
+    planning --> failed
+    generating --> failed
+    assembling --> failed
+    reviewing --> failed
+    evaluating --> failed
+```
+
+Maps 1:1 to `PipelineStatus` in `src/schemas/run.ts`.
 
 ## Architectural Thesis
 
@@ -38,178 +70,201 @@ to:
 
 `RFP -> requirement slots -> ranked candidates per slot -> coverage report`
 
+## API Reality
+
+The Proposales Content API stores products with these native fields: `product_id`, `variation_id` (1:1 in current system), `title` (multilingual map, keyed by language code), `description` (multilingual map, optional), `images`, `language`, `created_at`, `is_archived`, and `sources` (integration metadata for Opera, Mews, etc.).
+
+No category, capacity, pricing, unit, amenity, or tag fields exist natively. All retrieval-critical metadata must be created via LLM enrichment.
+
+**Multilingual → flat transformation:** `RawContent` preserves the API's multilingual maps. During enrichment, a target language is selected and the maps are flattened to single strings in `EnrichedProduct`. This is an architecture-significant boundary — downstream retrieval and generation operate on single-language data only.
+
+Proposal blocks reference content via `content_id` (which maps to `variation_id`). Pricing, quantity, discounts, and VAT are set at the block level during proposal assembly, not in the content library.
+
 ## Bounded Contexts
 
 ### Catalog
 
-Responsibilities:
+Responsibilities: product acquisition from API (`RawContent`), language flattening, LLM enrichment, taxonomy assignment, retrieval text construction, embedding, storage.
 
-- product acquisition
-- enrichment
-- taxonomy assignment
-- retrieval text construction
-- storage of structured product data
-
-Primary output:
-
-- `EnrichedProduct`
+Primary schemas: `RawContent`, `EnrichedProduct`
 
 ### Retrieval
 
-Responsibilities:
+Responsibilities: slot extraction from RFP text, alias and constraint normalization, hard filtering, dense similarity ranking, coverage checking, gap detection with typed reasons, constraint relaxation and retry for uncovered required slots.
 
-- slot extraction from RFP text
-- alias and constraint normalization
-- hard filtering
-- similarity ranking
-- gap detection
+Primary schemas: `RequirementSlot`, `BudgetHint`, `RankedCandidate`, `SlotMatch`, `GapReason`, `CoverageReport`
 
-Primary outputs:
+**Slot field → retrieval mapping:**
 
-- `RequirementSlot`
-- `SlotMatch`
-- `CoverageReport`
+| Slot Field | Used in Retrieval | How |
+|---|---|---|
+| `type` | Hard filter | Must match product `category` |
+| `capacity` / `guests` | Hard filter | Product `capacity_max >= required` |
+| `rooms` | Hard filter | For accommodation slots, product `capacity_max >= rooms` |
+| `indoor_outdoor` | Hard filter | Must match if specified |
+| `context` | Dense ranking | Embedded and compared via cosine similarity |
+| `budget_hint` | Soft filter | Used in relaxation, not initial hard filter |
+| `date` | Passthrough | No availability model in products; carried to proposal planning |
+| `constraints` | Soft filter | Checked during gap analysis, relaxed on retry |
+| `required` | Coverage logic | Only required slots count toward coverage ratio |
 
 ### Proposal
 
-Responsibilities:
+Responsibilities: convert coverage output into a proposal plan, generate block content per slot, map to API payload format, assemble via Proposales Create Proposal endpoint, self-review against original RFP.
 
-- convert coverage output into a proposal plan
-- generate block content
-- assemble proposal payloads
+Primary schemas: `ProposalBlock` (internal planning), `ProposalPlan`, `ApiProposalBlock` (API payload), `CreateProposalPayload`
 
-Primary output:
-
-- proposal-ready content blocks and API payloads
+**First slice scope:** Only `product-block` type is modeled. Video blocks, optional/picked toggles, recurring, relative, multi-product breakdowns, and discount fields are documented in `DATASET-EXPLORATION.md` but deferred until the core pipeline works.
 
 ### Evaluation
 
-Responsibilities:
+Responsibilities: score slot recall at K=3 (configurable), full coverage of required slots, hard-constraint violations, coherence. Surface typed failure flags (`EvalFlag` enum).
 
-- score coverage
-- detect constraint violations
-- judge proposal coherence
-- surface failure reasons
+Primary schema: `EvalResult`
 
-Primary output:
-
-- `EvalResult`
+**Coverage semantics:** `full_coverage` is the fraction of **required** slots with at least one valid candidate. Optional slots (upsells) are tracked but do not fail the run.
 
 ### Run Orchestration
 
-Responsibilities:
+Responsibilities: stage transitions matching `PipelineStatus` enum, status tracking, intermediate result persistence (slots, coverage, plan, generated blocks, review output, proposal UUID, evaluation), API route execution.
 
-- stage transitions
-- status tracking
-- route-level execution
-- result persistence
+Primary schema: `PipelineRun`
 
-Primary output:
+`PipelineRun` persists: `slots`, `coverage`, `plan`, `generated_blocks`, `proposal_uuid`, `review`, `evaluation`. Each field becomes available as its corresponding stage completes.
 
-- `PipelineRun`
+## Data Model
 
-## Initial Data Model
+All shared contracts live in `src/schemas/` as Zod schemas. The dependency graph is acyclic:
 
-The first shared contracts should cover:
-
-- `RfpInput`
-- `RequirementSlot`
-- `EnrichedProduct`
-- `SlotMatch`
-- `CoverageReport`
-- `ProposalPlan`
-- `EvalResult`
-- `PipelineRun`
-
-## Dataset Assumptions to Validate
-
-These assumptions should be verified during dataset exploration before retrieval logic is finalized.
-
-- titles and descriptions contain enough signal for enrichment
-- category is not reliably available in source payloads
-- capacity, pricing, and amenities must be normalized from text
-- some hard constraints can be extracted deterministically
-- aliases and synonyms will be required for robust matching
+```
+rfp.ts          (standalone)
+slot.ts         (standalone, defines SlotType + BudgetHint + RequirementSlot)
+product.ts      (imports SlotType, defines Unit + RawContent + EnrichedProduct)
+match.ts        (imports RequirementSlot + EnrichedProduct)
+proposal.ts     (imports RequirementSlot + EnrichedProduct)
+evaluation.ts   (standalone, defines EvalFlag + EvalResult)
+run.ts          (imports RfpInput + RequirementSlot + CoverageReport + ProposalPlan + ProposalBlock + EvalResult)
+```
 
 ## Retrieval Design
 
-### Current Choice
+### Slot-Based Plan-and-Execute
 
-The initial retrieval design is:
+Chosen after evaluating 18 approaches across 6 tiers: foundational retrieval, advanced reranking, query decomposition, structured-semantic hybrids, agentic control flow, and evaluation-driven methods.
 
-1. extract requirement slots
-2. normalize aliases and hard constraints
-3. filter candidates by category, capacity, budget, or availability when possible
-4. rank filtered candidates by dense similarity
-5. run coverage checks
-6. retry missing slots with softened constraints where appropriate
+The architecture combines:
+- **Multi-query decomposition** (core) — RFP → typed requirement slots
+- **Metadata filtering + vector search** (core) — category + capacity hard filter, then cosine ranking
+- **Query rewrite** (core for gap recovery) — relax constraints on uncovered slots, retry
+- **Inline coverage evaluation** (core) — success = all required slots covered
 
-### Why This Choice
+### Hard Constraints (reject deterministically)
 
-- it matches the actual multi-requirement structure of the problem
-- it uses deterministic filters where possible
-- it keeps ranking explainable
-- it produces outputs that evaluation can score directly
+1. `category` must match slot type
+2. `capacity_max >= required capacity` (for accommodation: room count)
+3. `indoor_outdoor` matches if specified in slot
 
-### Deferred Scale Enhancements
+### Soft Constraints (relax on retry)
 
-These belong later, not in the first slice:
+1. Subtype preference
+2. Budget range (via `budget_hint`)
+3. Amenities match
+4. Free-text `constraints` array entries
 
-- lexical hybrid retrieval inside slot search
-- reranking on top filtered candidates
-- database-backed faceting
-- background indexing and caching
+### Gap Recovery Strategy
+
+When a required slot has no candidates after hard filtering + ranking:
+
+1. Drop `indoor_outdoor` constraint if present
+2. Widen capacity range by 20%
+3. Broaden to parent category (e.g. if subtype was "ballroom", search all "venue")
+4. Maximum 2 retry rounds per slot
+
+If still uncovered after retries, the slot is reported as a gap with `GapReason` and `gap_detail`. `SlotMatch.relaxed` is set to `true` if the match came from a retry round.
+
+### Why Not Alternatives
+
+| Rejected | Reason |
+|---|---|
+| Pure BM25 / hybrid at small scale | Adds noise for 30-50 typed products, valuable at 500K+ |
+| Cross-encoder reranking | Deferred — useful precision upgrade at scale |
+| ColBERT / SPLADE | Too heavy for timeline, no training data |
+| HyDE | Unnecessary — decomposition already bridges query-document gap |
+| Fully agentic retrieval | Too nondeterministic; pipeline IS plan-and-execute without ReAct loop |
+| Knowledge graph | Useful later for package/upsell reasoning, not core retrieval now |
+
+### Scale Story: 50 → 500 → 500K
+
+The control flow stays the same. The candidate generator matures:
+- **50 products:** In-memory filtering + embedding. Planned for first slice.
+- **500 products:** Postgres + pgvector. Same filter-then-rank pattern.
+- **500K products:** Add BM25 as third signal inside slot search, cross-encoder reranking on top-K, database-backed faceting, background indexing, semantic caching.
 
 ## Technology Decisions
 
-- app runtime: Next.js App Router
-- language: TypeScript
-- validation: Zod
-- tests: Vitest
-- embeddings: OpenAI `text-embedding-3-small`
-- structured extraction: Anthropic Haiku
-- generation and judge: Anthropic Sonnet
-- deployment: Vercel
+| Layer | Choice | Why |
+|---|---|---|
+| App runtime | Next.js 16 App Router | Their stack, serverless-ready |
+| Language | TypeScript (strict) | Their stack, Zod integration |
+| Validation | Zod 4 | Schema-first contracts at every boundary |
+| Testing | Vitest 4 | Fast, native ESM, compatible with Zod |
+| Embeddings | OpenAI text-embedding-3-small | Pragmatic, cheap, sufficient for small catalog |
+| Extraction/enrichment | Anthropic Haiku | Fast, cheap structured output |
+| Generation/evaluation | Anthropic Sonnet | Quality generation and rubric-based judgment |
+| Deployment | Vercel | Their stack, preview deploys |
+| Async (deferred) | Trigger.dev | Their stack, for pipeline jobs exceeding Vercel timeout |
+
+## Operational Constraints
+
+**Vercel function timeout:** 10s (Hobby), 60s (Pro). The full pipeline (extraction + matching + planning + generation + assembly + review + evaluation) will likely exceed this for complex RFPs. First slice runs synchronously; Trigger.dev will be added if timeout becomes a blocker.
+
+**Estimated cost per run (complex RFP, 12+ slots):**
+- Slot extraction: ~1K input tokens, ~500 output tokens (Haiku)
+- Per-slot matching: embedding comparison only, no LLM cost
+- Planning + generation: ~2K input + ~2K output tokens per block × 12 blocks (Sonnet)
+- Review + evaluation: ~3K input + ~1K output tokens (Sonnet)
+- Total estimate: ~$0.05-0.15 per complex RFP run
+
+**Rate limits:** Anthropic and OpenAI rate limits apply. No batching or caching in first slice. Enrichment (one-time per product) is separate from per-request costs.
+
+**Partial failure:** `PipelineRun.error` captures the failure message. The run status moves to `failed` and intermediate results up to the failing stage are preserved.
 
 ## Storage Strategy
 
-Initial implementation:
+**Planned for first slice:** Seed products from JSON fixtures, in-memory or fixture-backed retrieval store behind an interface.
 
-- seed products from fixtures
-- keep a simple retrieval-store interface
-- allow in-memory or fixture-backed retrieval for the first slice
-
-Later:
-
-- move structured catalog storage to a durable store
-- preserve the same retrieval contract
+**Later:** Postgres + pgvector or Vercel KV for durable catalog storage. The retrieval interface stays the same.
 
 ## Quality Strategy
 
-Primary quality dimensions:
+| Metric | What it measures |
+|---|---|
+| `slot_recall@K` | Did we find a valid product in top-K for each required slot? (K=3 default) |
+| `full_coverage` | Fraction of required slots with at least one candidate |
+| `constraint_violation_rate` | How often does a returned product violate hard constraints? |
+| `coherence` | LLM-judged proposal quality |
+| `overall` | Weighted aggregate |
 
-- slot recall
-- full requirement coverage
-- hard-constraint violation rate
-- within-slot ranking quality
-- latency
-- token cost
+All metrics are ratios clamped 0-1. `EvalFlag` enum provides typed failure reasons. Golden test sets for 3 RFP difficulty levels (simple/4 slots, medium/8+ slots, complex/12+ slots) provide regression baselines.
 
-## Initial Risks
+## Security Considerations
 
-- over-modeling the domain before real payloads are inspected
-- treating the problem like generic RAG
-- mixing client and server responsibilities
-- adding proposal generation before retrieval quality is proven
-- overbuilding agent workflows before the main slice is stable
+**Implemented:**
+- Input shape validation at API route boundary via Zod (`RfpInput` validates presence and minimum length)
+- API keys in environment variables, never in code or shipped docs
+- `raw/` directory gitignored, private material excluded from all shipped artifacts
+
+**Planned but not yet implemented:**
+- Prompt injection defense: structured output schemas constrain LLM responses, but dedicated injection detection on RFP input is not yet built
+- Output guardrails on generated proposal content (profanity, hallucinated pricing)
+- Rate limiting on API routes
 
 ## First Vertical Slice
 
-The first implementation milestone should stop at:
+1. Load seed products into enriched catalog
+2. Accept RFP text
+3. Extract requirement slots
+4. Match products per slot (filter → rank)
+5. Return coverage report with gaps
 
-1. input RFP text
-2. extract slots
-3. match products per slot
-4. return coverage and gap results
-
-Proposal generation comes after that milestone is stable and tested.
+Proposal generation comes after this milestone is stable and tested.

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { RfpInput } from './rfp'
 import { RequirementSlot } from './slot'
 import { CoverageReport } from './match'
-import { ProposalPlan } from './proposal'
+import { ProposalPlan, ProposalBlock } from './proposal'
 import { EvalResult } from './evaluation'
 
 export const PipelineStatus = z.enum([
@@ -27,7 +27,9 @@ export const PipelineRun = z.object({
   slots: z.array(RequirementSlot).optional(),
   coverage: CoverageReport.optional(),
   plan: ProposalPlan.optional(),
+  generated_blocks: z.array(ProposalBlock).optional(),
   proposal_uuid: z.string().uuid().optional(),
+  review: z.string().optional(),
   evaluation: EvalResult.optional(),
   error: z.string().optional(),
   created_at: z.string().datetime(),
