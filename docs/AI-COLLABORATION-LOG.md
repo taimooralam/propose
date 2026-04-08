@@ -71,7 +71,7 @@ Each entry records the tool used and a sanitized paraphrase of the original quer
 **Sanitized Query:** Create project-level agent instructions and define sanitization rules so the AI collaboration log stays clean of private context.
 **Context:** The project needed Claude-specific instructions (CLAUDE.md) that defer to the shared AGENTS.md, and a mechanical ruleset for stripping private context from prompts before they enter the public log.
 **Evolution:** Initial CLAUDE.md was verbose and duplicated AGENTS.md content. It was compressed and given a clear delegation rule. Sanitization rules were then created covering strip, reframe, and keep categories with a mechanical rewrite pipeline.
-**Decision:** CLAUDE.md became a short supplement pointing to AGENTS.md. Sanitization rules were stored privately in `raw/` and referenced by CLAUDE.md instructions.
+**Decision:** CLAUDE.md became a short supplement pointing to AGENTS.md. Sanitization rules were created as a private reference and CLAUDE.md instructions enforce them before any log entry is written.
 **Trade-off:** The indirection adds a read step before logging, but prevents accidental leakage of private strategy into shipped docs.
 
 ### Skill Promotion Timing — 2026-04-07
@@ -136,3 +136,12 @@ Each entry records the tool used and a sanitized paraphrase of the original quer
 **Evolution:** Cross-provider review found 8 blind spots (optional-slot coverage, accommodation room semantics, indoor/outdoor relaxation, alias normalization, ranking quality, typed gap reasons, budget-as-money, multilingual flattening) and 5 scenario gaps (underconstrained assertions, stale two-day language, missing gap reasons). The 5 existing scenarios were tightened with concrete slot counts, types, and gap reasons. 5 new scenarios were added from the blind spots. A 12-product fixture catalog was designed to exercise all scenarios including intentional category gaps.
 **Decision:** Rewrote BDD to 10 concrete scenarios. Created fixture catalog (12 products, 5 categories, deliberate gaps in entertainment/decoration/activity/dietary). Wrote 6 test files: schema validation (24 tests, passing), slot extraction, slot matching, coverage, scoring, and accommodation (all failing at import — TDD red phase).
 **Trade-off:** Tests reference unimplemented functions and fail at import. This is intentional — Phase 6 implements the functions to make them pass. The risk is that test expectations may need adjustment once LLM extraction behavior is observed in practice.
+
+### Plan Validation Against Evaluation Criteria — 2026-04-08
+
+**Tool:** Claude + Codex
+**Sanitized Query:** Validate the overall implementation plan against the project requirements. Identify black holes, missing critical pieces, and plan correctness.
+**Context:** The project had completed documentation, schemas, and test stubs but needed to verify the plan would actually satisfy what evaluators look for: delivery of a working demo (35%), architecture quality (35%), leadership signals (20%), and process discipline (10%).
+**Evolution:** Cross-provider adversarial review found 6 specific gaps: the architecture mentioned "18 approaches evaluated" without showing the reasoning, no "honest trade-offs" section existed, the AI log leaked a private directory reference, golden test sets were deferred too far, a schema field was missing, and a future integration point was undocumented. The overall plan direction was validated as correct (slot-based retrieval, enrichment-first, TDD, functional style, coverage metrics).
+**Decision:** Created a private evaluation criteria rubric mapping requirements to checkpoints. Fixed all 6 gaps: added full 18-approach evaluation table to architecture, added trade-offs section, fixed the log leak, added `sources` to RawContent schema, noted future MCP integration. Created 5 reusable skills (codex-review, log-interaction, check-docs, implement-module, pre-commit) to accelerate execution.
+**Trade-off:** Time spent on plan validation delays implementation, but validates that the remaining work targets the right evaluation dimensions and doesn't miss critical deliverables.

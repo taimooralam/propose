@@ -24,6 +24,7 @@ export const RawContent = z.object({
   language: z.string().length(2).optional(),
   created_at: z.number().optional(),
   is_archived: z.boolean().optional(),
+  sources: z.record(z.string(), z.unknown()).optional(),
 })
 
 export type RawContent = z.infer<typeof RawContent>

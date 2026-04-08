@@ -150,7 +150,18 @@ run.ts          (imports RfpInput + RequirementSlot + CoverageReport + ProposalP
 
 ### Slot-Based Plan-and-Execute
 
-Chosen after evaluating 18 approaches across 6 tiers: foundational retrieval, advanced reranking, query decomposition, structured-semantic hybrids, agentic control flow, and evaluation-driven methods.
+Chosen after evaluating 18 approaches across 6 tiers:
+
+| Tier | Approaches | Verdict |
+|---|---|---|
+| **1. Foundational** | 1a Pure dense vector, 1b Pure BM25, 1c Hybrid BM25+vector (RRF) | 1a used within slots for ranking. 1b skipped — adds noise at 30-50 products. 1c deferred to 500K+ scale |
+| **2. Advanced Retrieval** | 2a Cross-encoder reranking, 2b ColBERT, 2c SPLADE, 2d Matryoshka embeddings | 2a deferred — useful precision at scale. 2b-2d skipped — too heavy for scope, no training data |
+| **3. Query Decomposition** | 3a Multi-query decomposition, 3b HyDE, 3c Query rewriting | **3a CORE** — RFP → typed slots. 3b skipped — decomposition already bridges query-document gap. **3c CORE** — for gap recovery |
+| **4. Structured + Semantic** | 4a Metadata filter + vector, 4b Faceted search, 4c Knowledge graph | **4a CORE** — category + capacity hard filter then dense rank. 4b deferred to database-backed scale. 4c deferred — useful for package/upsell reasoning |
+| **5. Agentic** | 5a Tool-use retrieval, 5b Plan-and-execute, 5c Self-RAG | **5b is the pipeline shape** — deterministic plan-and-execute, not a ReAct loop. 5a/5c skipped — too nondeterministic |
+| **6. Evaluation-Driven** | 6a Inline coverage evaluation, 6b Golden dataset calibration | **6a CORE** — success = all required slots covered. 6b used for regression testing |
+
+The winning architecture combines 3a + 4a + 3c + 6a into a plan-and-execute pipeline:
 
 The architecture combines:
 - **Multi-query decomposition** (core) — RFP → typed requirement slots
@@ -249,15 +260,48 @@ All metrics are ratios clamped 0-1. `EvalFlag` enum provides typed failure reaso
 
 ## Security Considerations
 
-**Implemented:**
-- Input shape validation at API route boundary via Zod (`RfpInput` validates presence and minimum length)
+**In place:**
+- Zod schemas validate all data boundaries (`RfpInput`, `RequirementSlot`, `EnrichedProduct`, etc.)
 - API keys in environment variables, never in code or shipped docs
-- `raw/` directory gitignored, private material excluded from all shipped artifacts
+- Private material gitignored and excluded from all shipped artifacts
 
 **Planned but not yet implemented:**
 - Prompt injection defense: structured output schemas constrain LLM responses, but dedicated injection detection on RFP input is not yet built
 - Output guardrails on generated proposal content (profanity, hallucinated pricing)
 - Rate limiting on API routes
+
+## Trade-offs and Scope Decisions
+
+### What Ships
+
+- Slot-based retrieval with coverage verification (the core differentiator)
+- Enrichment-first ingestion creating structured sidecar from unstructured API
+- Multi-step pipeline: extraction → matching → coverage → planning → generation → evaluation
+- 30+ seeded hotel products across 9 categories
+- TDD with 10 BDD scenarios and 60+ unit tests
+- Architecture document with retrieval evaluation rationale
+- AI collaboration log showing iterative decision-making
+
+### What Was Cut (and Why)
+
+| Cut | Reason | When to Add |
+|---|---|---|
+| BM25/hybrid inside slot search | Adds noise at 30-50 products; wrong tool for typed catalog | At 500K+ products |
+| Cross-encoder reranking | Precision upgrade, not needed for small catalog | At 500+ products with ranking quality issues |
+| Trigger.dev async execution | Complexity before proving pipeline correctness | When Vercel timeout becomes a blocker |
+| Database-backed storage (Postgres + pgvector) | In-memory/fixture store sufficient for demo | Production deployment |
+| MCP server wrapping Proposales API | JD mentions MCP expertise; documented as future integration point | After pipeline stability |
+| Semantic caching | Cost optimization for repeated queries | Production with traffic patterns |
+| Full UI polish | Functional demo > polished UI under time constraint | Post-assessment if extending |
+
+### What Would Change with More Time
+
+1. **Trigger.dev integration** — move pipeline execution off the Vercel function timeout
+2. **Postgres + pgvector** — durable catalog storage with proper vector indexing
+3. **Cross-encoder reranking** — Cohere Rerank v3 on top-K candidates per slot for precision
+4. **MCP server** — expose retrieval and proposal creation as MCP tools
+5. **Embedding comparison** — evaluate text-embedding-3-small vs 3-large on this catalog
+6. **RAPTOR hierarchical indexing** — for large multi-property catalogs with package structures
 
 ## First Vertical Slice
 
