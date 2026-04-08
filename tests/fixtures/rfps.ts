@@ -1,0 +1,8 @@
+/** Simple RFP: 12-person board meeting — expects 4 slots */
+export const simpleRfp = `We need a boardroom for 12 people for a full-day board meeting on May 15th. Please include lunch for all attendees, continuous coffee and refreshments, and a projector with screen. Budget around EUR 2,000.`
+
+/** Medium RFP: 80-guest product launch — expects 8+ slots */
+export const mediumRfp = `We are planning a product launch event for 80 guests. We need a main venue that can seat all 80 attendees theater-style, plus two breakout rooms for 25 people each for afternoon workshops. Catering should include a full lunch buffet and a continuous coffee service. We need a full AV package with sound and screens for the main venue. The event also requires high-speed WiFi and a registration desk with check-in staff at the entrance. The event is in June.`
+
+/** Complex RFP: 3-day destination wedding — expects 12+ slots */
+export const complexRfp = `We are organising a three-day destination wedding from June 20 to 22 for 120 guests. Day 1: welcome dinner for 50 guests in an intimate setting. Day 2: outdoor ceremony for 120 guests (with indoor backup in case of rain), followed by a cocktail reception for 120, and a seated dinner for 120 with a live band and open bar. Day 3: farewell brunch for 80 guests. We need 40 hotel rooms for 2 nights — a mix of standard rooms, a few suites, and a bridal suite. We also need a spa package for the bridal party of 6, floral arrangements for the ceremony and dinner, and dietary accommodations for 8 vegetarians, 3 gluten-free, and 2 vegan guests. Budget is EUR 45,000-60,000 excluding accommodation.`
