@@ -18,8 +18,8 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 /** Get the required capacity from a slot based on its type. */
-function getRequiredCapacity(slot: RequirementSlot): number | undefined {
-  if (slot.type === 'accommodation') return slot.rooms
+export function getRequiredCapacity(slot: RequirementSlot): number | undefined {
+  if (slot.type === 'accommodation') return slot.rooms ?? slot.guests
   return slot.capacity ?? slot.guests
 }
 
@@ -33,11 +33,10 @@ export function hardFilter(slot: RequirementSlot, catalog: EnrichedProduct[]): E
     const required = getRequiredCapacity(slot)
     if (required !== undefined && product.capacity_max < required) return false
 
-    // Indoor/outdoor check
+    // Indoor/outdoor check — n/a products only pass if slot has no preference
     if (slot.indoor_outdoor) {
-      if (product.indoor_outdoor === 'n/a') return true // n/a passes any filter
-      if (slot.indoor_outdoor === 'both') return true // 'both' accepts any
-      if (product.indoor_outdoor === 'both') return true // product supports both
+      if (slot.indoor_outdoor === 'both') return true
+      if (product.indoor_outdoor === 'both') return true
       if (product.indoor_outdoor !== slot.indoor_outdoor) return false
     }
 
@@ -69,7 +68,7 @@ export function diagnoseGap(
 
   if (slot.indoor_outdoor) {
     const envMatches = categoryMatches.filter(p =>
-      p.indoor_outdoor === 'n/a' || p.indoor_outdoor === 'both' ||
+      p.indoor_outdoor === 'both' ||
       slot.indoor_outdoor === 'both' || p.indoor_outdoor === slot.indoor_outdoor,
     )
     if (envMatches.length === 0) {
@@ -83,29 +82,37 @@ export function diagnoseGap(
   return { reason: 'other', detail: `No matching products for: ${slot.context}` }
 }
 
+/** Widen the capacity field that was originally set on the slot. Preserves field semantics. */
+function widenCapacity(original: RequirementSlot, relaxed: RequirementSlot, factor: number): void {
+  // Only relax the field that was originally populated — don't cross-write rooms↔guests
+  if (original.type === 'accommodation') {
+    if (original.rooms !== undefined) {
+      relaxed.rooms = Math.max(1, Math.floor(original.rooms * factor))
+    } else if (original.guests !== undefined) {
+      relaxed.guests = Math.max(1, Math.floor(original.guests * factor))
+    }
+  } else {
+    if (original.capacity !== undefined) {
+      relaxed.capacity = Math.max(1, Math.floor(original.capacity * factor))
+    } else if (original.guests !== undefined) {
+      relaxed.guests = Math.max(1, Math.floor(original.guests * factor))
+    }
+  }
+}
+
 /** Create a relaxed copy of a slot for retry round. */
 export function relaxSlot(slot: RequirementSlot, round: number): RequirementSlot {
   const relaxed = { ...slot }
 
   if (round >= 1) {
-    // Round 1: drop indoor/outdoor, widen capacity by 20%
+    // Round 1: drop indoor/outdoor, widen capacity to 80% of original
     delete (relaxed as Record<string, unknown>).indoor_outdoor
-    const required = getRequiredCapacity(relaxed)
-    if (required !== undefined) {
-      const widened = Math.floor(required * 0.8)
-      if (relaxed.type === 'accommodation') {
-        relaxed.rooms = widened
-      } else if (relaxed.guests !== undefined) {
-        relaxed.guests = widened
-      } else if (relaxed.capacity !== undefined) {
-        relaxed.capacity = widened
-      }
-    }
+    widenCapacity(slot, relaxed, 0.8)
   }
 
   if (round >= 2) {
-    // Round 2: remove subtype preference from constraints
-    relaxed.constraints = relaxed.constraints.filter(c => !c.startsWith('subtype:'))
+    // Round 2: widen capacity further to 60% of original
+    widenCapacity(slot, relaxed, 0.6)
   }
 
   return relaxed

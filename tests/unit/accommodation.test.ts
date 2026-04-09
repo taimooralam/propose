@@ -53,6 +53,38 @@ describe('accommodation — room count semantics', () => {
     expect(ids).not.toContain(standardRoomBlock.product_id)
   })
 
+  it('accommodation with guests but no rooms uses guests as fallback for capacity check', async () => {
+    const slot: RequirementSlot = {
+      type: 'accommodation',
+      context: '30 guests need rooms',
+      guests: 30,
+      constraints: [],
+      required: true,
+    }
+
+    const result = await matchSlot(slot, testCatalog, noopEmbed)
+    // standardRoomBlock has capacity_max=40, guests=30 fits via fallback
+    // Note: this is a best-effort fallback — extraction should ideally provide rooms
+    expect(result.covered).toBe(true)
+    const ids = result.candidates.map(c => c.product.product_id)
+    expect(ids).toContain(standardRoomBlock.product_id)
+  })
+
+  it('accommodation with guests=60 but no rooms exceeds capacity via fallback', async () => {
+    const slot: RequirementSlot = {
+      type: 'accommodation',
+      context: '60 guests need rooms',
+      guests: 60,
+      constraints: [],
+      required: true,
+    }
+
+    const result = await matchSlot(slot, testCatalog, noopEmbed)
+    // standardRoomBlock has capacity_max=40, guests=60 exceeds
+    expect(result.covered).toBe(false)
+    expect(result.gap_reason).toBe('capacity_exceeded')
+  })
+
   it('room count exceeding capacity returns uncovered', async () => {
     const slot: RequirementSlot = {
       type: 'accommodation',

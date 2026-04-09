@@ -12,22 +12,26 @@ async function rankCandidates(
 ): Promise<RankedCandidate[]> {
   if (filtered.length === 0) return []
 
-  // If products have embeddings, use cosine similarity
-  const productsWithEmbeddings = filtered.filter(p => p.embedding && p.embedding.length > 0)
+  // Score each product: use embedding if available, text overlap otherwise
+  const hasAnyEmbedding = filtered.some(p => p.embedding && p.embedding.length > 0)
+  let slotEmbedding: number[] | null = null
+  if (hasAnyEmbedding) {
+    slotEmbedding = await embed(slot.context)
+  }
 
-  if (productsWithEmbeddings.length > 0) {
-    const slotEmbedding = await embed(slot.context)
-
-    const scored: RankedCandidate[] = productsWithEmbeddings.map(product => ({
+  if (slotEmbedding && slotEmbedding.length > 0) {
+    const scored: RankedCandidate[] = filtered.map(product => ({
       product,
-      similarity: cosineSimilarity(slotEmbedding, product.embedding!),
+      similarity: product.embedding && product.embedding.length > 0
+        ? cosineSimilarity(slotEmbedding!, product.embedding)
+        : textOverlapScore(slot.context, product.retrieval_text),
     }))
 
     scored.sort((a, b) => b.similarity - a.similarity)
     return scored.slice(0, MAX_CANDIDATES)
   }
 
-  // Fallback: simple text overlap scoring for products without embeddings
+  // Full fallback: text overlap scoring when no embeddings exist
   const scored: RankedCandidate[] = filtered.map(product => ({
     product,
     similarity: textOverlapScore(slot.context, product.retrieval_text),

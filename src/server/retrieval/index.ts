@@ -38,7 +38,19 @@ export async function retrieveForRfp(
     }
   }
 
-  return checkCoverage(matches)
+  // Replace gap reason on slots that remain uncovered after all retry rounds
+  const finalMatches = matches.map(match => {
+    if (!match.covered && match.slot.required) {
+      return {
+        ...match,
+        gap_reason: 'no_candidates_after_relaxation' as const,
+        gap_detail: `No candidates found for ${match.slot.type} after ${MAX_RETRY_ROUNDS} retry rounds. Original reason: ${match.gap_reason ?? 'unknown'}`,
+      }
+    }
+    return match
+  })
+
+  return checkCoverage(finalMatches)
 }
 
 export { extractSlots } from './extract-slots'

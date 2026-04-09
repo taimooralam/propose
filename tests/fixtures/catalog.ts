@@ -193,15 +193,15 @@ export const standardRoomBlock = product({
   product_id: 12,
   variation_id: 12,
   title: 'Standard Room Block',
-  description: 'Block of standard hotel rooms, available up to 20 rooms per booking.',
+  description: 'Block of standard hotel rooms, available up to 40 rooms per booking.',
   category: 'accommodation',
   subtype: 'standard_room',
   capacity_min: 1,
-  capacity_max: 20,
+  capacity_max: 40,
   unit: 'per_room',
   price_cents: 12000,
   tags: ['room', 'accommodation', 'standard', 'hotel'],
-  retrieval_text: 'Standard Room Block | accommodation standard_room | capacity 1-20 | per_room | room, accommodation, standard, hotel | | n/a | Block of standard hotel rooms, available up to 20 rooms per booking.',
+  retrieval_text: 'Standard Room Block | accommodation standard_room | capacity 1-40 | per_room | room, accommodation, standard, hotel | | n/a | Block of standard hotel rooms, available up to 40 rooms per booking.',
 })
 
 /** Full test catalog — 12 products across 5 categories. No entertainment, decoration, activity, or dietary products (intentional gaps). */

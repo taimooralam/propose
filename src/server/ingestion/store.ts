@@ -11,8 +11,9 @@ export async function loadCatalog(): Promise<EnrichedProduct[]> {
     const raw = await readFile(CATALOG_PATH, 'utf-8')
     const parsed = JSON.parse(raw)
     return z.array(EnrichedProduct).parse(parsed)
-  } catch {
-    return []
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw err
   }
 }
 

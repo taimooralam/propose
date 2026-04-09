@@ -186,12 +186,13 @@ The architecture combines:
 
 When a required slot has no candidates after hard filtering + ranking:
 
-1. Drop `indoor_outdoor` constraint if present
-2. Widen capacity range by 20%
-3. Broaden to parent category (e.g. if subtype was "ballroom", search all "venue")
-4. Maximum 2 retry rounds per slot
+**Round 1:** Drop `indoor_outdoor` constraint, widen capacity to 80% of original requirement.
+**Round 2:** Widen capacity further to 60% of original requirement.
+**Maximum:** 2 retry rounds per slot. Only uncovered required slots are retried.
 
-If still uncovered after retries, the slot is reported as a gap with `GapReason` and `gap_detail`. `SlotMatch.relaxed` is set to `true` if the match came from a retry round.
+If still uncovered after both rounds, `gap_reason` is set to `no_candidates_after_relaxation` with detail including the original failure reason. `SlotMatch.relaxed` is set to `true` on matches recovered through retry.
+
+Relaxation preserves field semantics: if the original slot used `rooms`, only `rooms` is widened (never cross-written to `guests`). Capacity is floored at 1 to prevent zero-capacity searches.
 
 ### Why Not Alternatives
 
