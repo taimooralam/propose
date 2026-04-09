@@ -3,6 +3,8 @@ import { matchSlot } from '@/server/retrieval/match-slots'
 import type { RequirementSlot } from '@/schemas'
 import { testCatalog, standardRoomBlock, ballroomMeridian } from '../fixtures/catalog'
 
+const noopEmbed = async () => [] as number[]
+
 describe('accommodation — room count semantics', () => {
   it('accommodation slot uses rooms for filtering, not guests', async () => {
     const slot: RequirementSlot = {
@@ -13,8 +15,7 @@ describe('accommodation — room count semantics', () => {
       required: true,
     }
 
-    const result = await matchSlot(slot, testCatalog)
-    // standardRoomBlock has capacity_max=20, rooms=15 fits
+    const result = await matchSlot(slot, testCatalog, noopEmbed)
     expect(result.covered).toBe(true)
     const ids = result.candidates.map(c => c.product.product_id)
     expect(ids).toContain(standardRoomBlock.product_id)
@@ -29,10 +30,9 @@ describe('accommodation — room count semantics', () => {
       required: true,
     }
 
-    const result = await matchSlot(slot, testCatalog)
+    const result = await matchSlot(slot, testCatalog, noopEmbed)
     const categories = result.candidates.map(c => c.product.category)
     expect(categories.every(c => c === 'accommodation')).toBe(true)
-    // ballroom should never appear here
     const ids = result.candidates.map(c => c.product.product_id)
     expect(ids).not.toContain(ballroomMeridian.product_id)
   })
@@ -46,7 +46,7 @@ describe('accommodation — room count semantics', () => {
       required: true,
     }
 
-    const result = await matchSlot(slot, testCatalog)
+    const result = await matchSlot(slot, testCatalog, noopEmbed)
     const categories = result.candidates.map(c => c.product.category)
     expect(categories.every(c => c === 'venue')).toBe(true)
     const ids = result.candidates.map(c => c.product.product_id)
@@ -62,8 +62,7 @@ describe('accommodation — room count semantics', () => {
       required: true,
     }
 
-    const result = await matchSlot(slot, testCatalog)
-    // standardRoomBlock has capacity_max=20, rooms=50 exceeds
+    const result = await matchSlot(slot, testCatalog, noopEmbed)
     expect(result.covered).toBe(false)
     expect(result.gap_reason).toBe('capacity_exceeded')
   })

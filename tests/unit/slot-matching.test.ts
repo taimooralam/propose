@@ -6,9 +6,11 @@ import {
   boardroomAlpha,
   ballroomMeridian,
   gardenTerrace,
-  executiveLunchBuffet,
-  basicProjectorKit,
+  standardRoomBlock,
 } from '../fixtures/catalog'
+
+// Stub embedder that returns empty array — forces text overlap fallback
+const noopEmbed = async () => [] as number[]
 
 describe('matchSlot — category filtering', () => {
   it('catering slot does not match AV products', async () => {
@@ -20,9 +22,8 @@ describe('matchSlot — category filtering', () => {
       required: true,
     }
 
-    const result = await matchSlot(slot, testCatalog)
+    const result = await matchSlot(slot, testCatalog, noopEmbed)
     const categories = result.candidates.map(c => c.product.category)
-
     expect(categories.every(c => c === 'catering')).toBe(true)
   })
 
@@ -35,9 +36,8 @@ describe('matchSlot — category filtering', () => {
       required: true,
     }
 
-    const result = await matchSlot(slot, testCatalog)
+    const result = await matchSlot(slot, testCatalog, noopEmbed)
     const categories = result.candidates.map(c => c.product.category)
-
     expect(categories.every(c => c === 'venue')).toBe(true)
   })
 })
@@ -52,8 +52,7 @@ describe('matchSlot — capacity filtering', () => {
       required: true,
     }
 
-    const result = await matchSlot(slot, testCatalog)
-    // boardroomAlpha (cap 16) should be excluded
+    const result = await matchSlot(slot, testCatalog, noopEmbed)
     const ids = result.candidates.map(c => c.product.product_id)
     expect(ids).not.toContain(boardroomAlpha.product_id)
   })
@@ -67,7 +66,7 @@ describe('matchSlot — capacity filtering', () => {
       required: true,
     }
 
-    const result = await matchSlot(slot, testCatalog)
+    const result = await matchSlot(slot, testCatalog, noopEmbed)
     expect(result.covered).toBe(false)
     expect(result.gap_reason).toBe('capacity_exceeded')
     expect(result.candidates).toHaveLength(0)
@@ -85,7 +84,7 @@ describe('matchSlot — indoor/outdoor filtering', () => {
       required: true,
     }
 
-    const result = await matchSlot(slot, testCatalog)
+    const result = await matchSlot(slot, testCatalog, noopEmbed)
     const ids = result.candidates.map(c => c.product.product_id)
     expect(ids).not.toContain(gardenTerrace.product_id)
   })
@@ -100,7 +99,7 @@ describe('matchSlot — ranking', () => {
       required: true,
     }
 
-    const result = await matchSlot(slot, testCatalog)
+    const result = await matchSlot(slot, testCatalog, noopEmbed)
     expect(result.candidates.length).toBeLessThanOrEqual(3)
   })
 
@@ -113,7 +112,7 @@ describe('matchSlot — ranking', () => {
       required: true,
     }
 
-    const result = await matchSlot(slot, testCatalog)
+    const result = await matchSlot(slot, testCatalog, noopEmbed)
     expect(result.candidates.length).toBeGreaterThanOrEqual(2)
 
     const topCandidate = result.candidates[0]
@@ -128,7 +127,7 @@ describe('matchSlot — ranking', () => {
       required: true,
     }
 
-    const result = await matchSlot(slot, testCatalog)
+    const result = await matchSlot(slot, testCatalog, noopEmbed)
     const scores = result.candidates.map(c => c.similarity)
 
     for (let i = 1; i < scores.length; i++) {
@@ -139,6 +138,7 @@ describe('matchSlot — ranking', () => {
 
 describe('matchSlot — no match', () => {
   it('returns covered=false with no_category_match when category has no products', async () => {
+    // testCatalog has no entertainment products
     const slot: RequirementSlot = {
       type: 'entertainment',
       context: 'live band for dinner',
@@ -146,7 +146,7 @@ describe('matchSlot — no match', () => {
       required: true,
     }
 
-    const result = await matchSlot(slot, testCatalog)
+    const result = await matchSlot(slot, testCatalog, noopEmbed)
     expect(result.covered).toBe(false)
     expect(result.gap_reason).toBe('no_category_match')
   })

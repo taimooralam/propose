@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { checkCoverage } from '@/server/retrieval/coverage'
 import type { RequirementSlot, SlotMatch } from '@/schemas'
-import { boardroomAlpha, executiveLunchBuffet, gardenTerrace } from '../fixtures/catalog'
+import { boardroomAlpha, gardenTerrace } from '../fixtures/catalog'
 
 function coveredMatch(slot: RequirementSlot): SlotMatch {
   return {
@@ -82,10 +82,9 @@ describe('checkCoverage — required vs optional', () => {
     ]
 
     const report = checkCoverage(matches)
-    // coverage_ratio is based on required slots only
     expect(report.coverage_ratio).toBe(1.0)
-    expect(report.covered_slots).toBe(2) // required covered
-    expect(report.total_slots).toBe(2) // required total
+    expect(report.covered_slots).toBe(2)
+    expect(report.total_slots).toBe(2)
   })
 
   it('optional gap still appears in gaps array', () => {
@@ -101,8 +100,8 @@ describe('checkCoverage — required vs optional', () => {
   })
 })
 
-describe('checkCoverage — gap recovery', () => {
-  it('relaxed match has relaxed=true', () => {
+describe('checkCoverage — relaxed matches', () => {
+  it('relaxed match has relaxed=true in matches', () => {
     const relaxedMatch: SlotMatch = {
       slot: {
         type: 'venue',
@@ -117,23 +116,18 @@ describe('checkCoverage — gap recovery', () => {
       relaxed: true,
     }
 
-    expect(relaxedMatch.relaxed).toBe(true)
-    expect(relaxedMatch.covered).toBe(true)
+    const report = checkCoverage([relaxedMatch])
+    expect(report.coverage_ratio).toBe(1.0)
+    expect(report.matches[0].relaxed).toBe(true)
   })
+})
 
-  it('maximum 2 retry rounds per slot', () => {
-    // This test validates the contract — implementation must respect max retries
-    // The actual retry logic will be tested against the retrieval orchestrator
-    const MAX_RETRIES = 2
-    expect(MAX_RETRIES).toBe(2) // Architecture contract
-  })
-
-  it('only uncovered required slots are retried', () => {
-    // Already-covered slots and optional uncovered slots should not be retried
+describe('checkCoverage — retry filtering logic', () => {
+  it('only uncovered required slots should be retried', () => {
     const matches: SlotMatch[] = [
-      coveredMatch(requiredVenue), // already covered — skip
-      uncoveredMatch(requiredCatering, 'no_category_match'), // uncovered required — retry
-      uncoveredMatch(optionalEntertainment, 'no_category_match'), // optional — skip
+      coveredMatch(requiredVenue),
+      uncoveredMatch(requiredCatering, 'no_category_match'),
+      uncoveredMatch(optionalEntertainment, 'no_category_match'),
     ]
 
     const slotsToRetry = matches.filter(m => !m.covered && m.slot.required)

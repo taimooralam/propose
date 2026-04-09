@@ -1,0 +1,234 @@
+[
+  {
+    "title": "Boardroom Alpha",
+    "description": "Intimate boardroom with built-in projector, whiteboard, and video conferencing equipment. Seats up to 16 in a U-shape or boardroom layout. Natural daylight and blackout blinds.",
+    "price_cents": 60000,
+    "currency": "EUR",
+    "category": "venue",
+    "subtype": "boardroom"
+  },
+  {
+    "title": "Grand Ballroom Meridian",
+    "description": "Grand ballroom with stage, ceiling-mounted screens, and professional sound system. Accommodates up to 180 guests for seated dinner or 250 standing. Crystal chandeliers and adjustable lighting.",
+    "price_cents": 180000,
+    "currency": "EUR",
+    "category": "venue",
+    "subtype": "ballroom"
+  },
+  {
+    "title": "Garden Terrace",
+    "description": "Open-air terrace with panoramic garden views, suitable for ceremonies and receptions. Accommodates up to 80 guests. Retractable canopy for weather protection. Fairy light canopy available.",
+    "price_cents": 90000,
+    "currency": "EUR",
+    "category": "venue",
+    "subtype": "garden_terrace"
+  },
+  {
+    "title": "Conference Room A",
+    "description": "Medium-sized conference room with modular furniture. Capacity 50 in theatre style, 30 in classroom setup. Built-in screen and HDMI connections.",
+    "price_cents": 45000,
+    "currency": "EUR",
+    "category": "venue",
+    "subtype": "conference_room"
+  },
+  {
+    "title": "Workshop Room East",
+    "description": "Flexible workshop space for up to 30 participants with movable furniture and writable walls. Adjacent to main conference wing.",
+    "price_cents": 30000,
+    "currency": "EUR",
+    "category": "venue",
+    "subtype": "workshop_room"
+  },
+  {
+    "title": "Workshop Room West",
+    "description": "Flexible workshop space for up to 30 participants. Mirrors East wing layout. Breakout-friendly with independent climate control.",
+    "price_cents": 30000,
+    "currency": "EUR",
+    "category": "venue",
+    "subtype": "workshop_room"
+  },
+  {
+    "title": "Private Dining Room",
+    "description": "Elegant private dining room for intimate gatherings. Seats up to 24 guests around a single table. Dedicated service entrance and wine display.",
+    "price_cents": 50000,
+    "currency": "EUR",
+    "category": "venue",
+    "subtype": "private_dining"
+  },
+  {
+    "title": "Executive Lunch Buffet",
+    "description": "Three-course buffet lunch with seasonal menu. Includes starter bar, hot and cold mains, and dessert station. Serves up to 150 guests. Dietary labels for all items.",
+    "price_cents": 3500,
+    "currency": "EUR",
+    "category": "catering",
+    "subtype": "executive_lunch"
+  },
+  {
+    "title": "Coffee & Refreshments Service",
+    "description": "Continuous coffee, tea, juices, and pastries throughout your event. Set up in dedicated break area. Serves up to 200 guests.",
+    "price_cents": 900,
+    "currency": "EUR",
+    "category": "catering",
+    "subtype": "coffee_service"
+  },
+  {
+    "title": "Gala Dinner Package",
+    "description": "Four-course seated dinner with amuse-bouche, sommelier wine pairing, and dedicated wait staff. Serves up to 150 guests. Customisable menu available.",
+    "price_cents": 8500,
+    "currency": "EUR",
+    "category": "catering",
+    "subtype": "gala_dinner"
+  },
+  {
+    "title": "Cocktail Reception Package",
+    "description": "Premium cocktail reception with canapés, signature drinks, and bartender service. Suitable for up to 200 guests standing.",
+    "price_cents": 4500,
+    "currency": "EUR",
+    "category": "catering",
+    "subtype": "cocktail_reception"
+  },
+  {
+    "title": "Brunch Buffet",
+    "description": "Relaxed brunch buffet with eggs station, pastries, fresh fruit, and cold cuts. Serves up to 100 guests. Perfect for morning-after events.",
+    "price_cents": 2800,
+    "currency": "EUR",
+    "category": "catering",
+    "subtype": "brunch_buffet"
+  },
+  {
+    "title": "Standard Room Block",
+    "description": "Block of standard hotel rooms. Comfortable rooms with ensuite bathroom, desk, and complimentary WiFi. Available up to 40 rooms per booking.",
+    "price_cents": 12000,
+    "currency": "EUR",
+    "category": "accommodation",
+    "subtype": "standard_room"
+  },
+  {
+    "title": "Superior Room Block",
+    "description": "Block of superior rooms with upgraded amenities, city views, and minibar. Available up to 20 rooms per booking.",
+    "price_cents": 18000,
+    "currency": "EUR",
+    "category": "accommodation",
+    "subtype": "superior_room"
+  },
+  {
+    "title": "Bridal Suite",
+    "description": "Luxurious bridal suite with separate living area, champagne welcome, late checkout, and in-room breakfast. One suite available.",
+    "price_cents": 45000,
+    "currency": "EUR",
+    "category": "accommodation",
+    "subtype": "bridal_suite"
+  },
+  {
+    "title": "Basic Projector & Screen Kit",
+    "description": "HD projector with motorised screen, HDMI adapter, laser pointer, and clicker. Suitable for rooms up to 50 people.",
+    "price_cents": 15000,
+    "currency": "EUR",
+    "category": "av_equipment",
+    "subtype": "basic_projector"
+  },
+  {
+    "title": "Premium AV Suite",
+    "description": "Full audio-visual package with multi-screen setup, professional sound system, live streaming capability, and dedicated sound engineer.",
+    "price_cents": 75000,
+    "currency": "EUR",
+    "category": "av_equipment",
+    "subtype": "full_av_package"
+  },
+  {
+    "title": "Spa Day Package — Bridal Party",
+    "description": "Half-day spa experience for groups up to 8. Includes massage, facial, access to thermal pools, and champagne. Perfect for bridal parties.",
+    "price_cents": 15000,
+    "currency": "EUR",
+    "category": "activity",
+    "subtype": "spa_package"
+  },
+  {
+    "title": "Guided City Tour",
+    "description": "Three-hour guided walking tour of the city for groups up to 25. Includes museum entry and local coffee stop.",
+    "price_cents": 4500,
+    "currency": "EUR",
+    "category": "activity",
+    "subtype": "city_tour"
+  },
+  {
+    "title": "Standard Floral Arrangement",
+    "description": "Table centrepieces and entrance arrangements using seasonal flowers. Covers up to 15 tables plus entrance and registration area.",
+    "price_cents": 35000,
+    "currency": "EUR",
+    "category": "decoration",
+    "subtype": "floral_standard"
+  },
+  {
+    "title": "Premium Floral & Decor Package",
+    "description": "Full venue decoration including ceremony arch, aisle arrangements, table centrepieces, and hanging installations. Bespoke design consultation included.",
+    "price_cents": 85000,
+    "currency": "EUR",
+    "category": "decoration",
+    "subtype": "floral_premium"
+  },
+  {
+    "title": "DJ Entertainment Package",
+    "description": "Professional DJ with sound system, lighting rig, and microphone for speeches. Up to 5 hours of entertainment. Music planning consultation included.",
+    "price_cents": 45000,
+    "currency": "EUR",
+    "category": "entertainment",
+    "subtype": "dj_package"
+  },
+  {
+    "title": "Live Band — String Quartet",
+    "description": "Professional string quartet for ceremonies and cocktail hours. Up to 3 hours of live classical and contemporary music.",
+    "price_cents": 60000,
+    "currency": "EUR",
+    "category": "entertainment",
+    "subtype": "string_quartet"
+  },
+  {
+    "title": "Live Band — Full Band",
+    "description": "Five-piece live band with vocalist. Covers pop, rock, soul, and jazz. Includes sound equipment and lighting. Up to 4 hours.",
+    "price_cents": 95000,
+    "currency": "EUR",
+    "category": "entertainment",
+    "subtype": "live_band"
+  },
+  {
+    "title": "High-Speed Event WiFi",
+    "description": "Dedicated high-speed wireless network for your event. Supports up to 500 concurrent devices with branded login page.",
+    "price_cents": 25000,
+    "currency": "EUR",
+    "category": "service",
+    "subtype": "high_speed_wifi"
+  },
+  {
+    "title": "Registration Desk & Staff",
+    "description": "Professional registration team with branded badges, tablet check-in system, and welcome desk setup. Includes two staff members for up to 8 hours.",
+    "price_cents": 40000,
+    "currency": "EUR",
+    "category": "service",
+    "subtype": "registration_desk"
+  },
+  {
+    "title": "Valet Parking Service",
+    "description": "Professional valet parking for up to 80 vehicles. Includes signage, ticket system, and uniformed attendants.",
+    "price_cents": 35000,
+    "currency": "EUR",
+    "category": "service",
+    "subtype": "valet_parking"
+  },
+  {
+    "title": "Vegetarian Menu Upgrade",
+    "description": "Full vegetarian alternative menu for any catering package. Includes dedicated prep area to avoid cross-contamination. Per person supplement.",
+    "price_cents": 500,
+    "currency": "EUR",
+    "category": "dietary",
+    "subtype": "vegetarian_upgrade"
+  },
+  {
+    "title": "Special Dietary Accommodation",
+    "description": "Custom dietary accommodation for gluten-free, vegan, halal, or kosher requirements. Chef consultation and dedicated preparation. Per person supplement.",
+    "price_cents": 800,
+    "currency": "EUR",
+    "category": "dietary",
+    "subtype": "special_dietary"
+  }
+]
