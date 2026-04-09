@@ -160,14 +160,29 @@ export async function extractStructuredSonnet<T>(
   return schema.parse(parsed)
 }
 
+/** Call OpenAI embeddings with retry. */
+async function callEmbeddingWithRetry(
+  input: string | string[],
+  maxRetries = 3,
+): Promise<OpenAI.Embeddings.CreateEmbeddingResponse> {
+  const client = getEmbeddingClient()
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await client.embeddings.create({ model: EMBEDDING_MODEL, input })
+    } catch (err) {
+      if (attempt === maxRetries) throw err
+      const delay = Math.pow(2, attempt) * 1000
+      console.warn(`Embedding call failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms...`)
+      await sleep(delay)
+    }
+  }
+  throw new Error('Unreachable')
+}
+
 /** Embed a single text string. Returns a normalized vector.
  *  Always uses OpenAI directly — OpenRouter doesn't serve embedding models. */
 export async function embedText(text: string): Promise<number[]> {
-  const client = getEmbeddingClient()
-  const response = await client.embeddings.create({
-    model: EMBEDDING_MODEL,
-    input: text,
-  })
+  const response = await callEmbeddingWithRetry(text)
   return response.data[0].embedding
 }
 
@@ -176,11 +191,7 @@ export async function embedText(text: string): Promise<number[]> {
 export async function embedBatch(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return []
 
-  const client = getEmbeddingClient()
-  const response = await client.embeddings.create({
-    model: EMBEDDING_MODEL,
-    input: texts,
-  })
+  const response = await callEmbeddingWithRetry(texts)
 
   return response.data
     .sort((a, b) => a.index - b.index)

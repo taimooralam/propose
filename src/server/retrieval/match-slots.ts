@@ -12,11 +12,16 @@ async function rankCandidates(
 ): Promise<RankedCandidate[]> {
   if (filtered.length === 0) return []
 
-  // Score each product: use embedding if available, text overlap otherwise
+  // Score each product: use embedding if available, fall back to text overlap on failure
   const hasAnyEmbedding = filtered.some(p => p.embedding && p.embedding.length > 0)
   let slotEmbedding: number[] | null = null
   if (hasAnyEmbedding) {
-    slotEmbedding = await embed(slot.context)
+    try {
+      slotEmbedding = await embed(slot.context)
+    } catch {
+      // Embedding service down — graceful degradation to text overlap
+      slotEmbedding = null
+    }
   }
 
   if (slotEmbedding && slotEmbedding.length > 0) {

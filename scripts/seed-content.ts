@@ -34,8 +34,12 @@ async function main() {
       const { product, confidence } = await enrichProduct(partial)
       confidenceCounts[confidence]++
 
-      // Stage 3: Build retrieval_text
-      const withText = { ...product, retrieval_text: buildRetrievalText(product) }
+      // Stage 3: Build retrieval_text + persist source_hash
+      const withText = {
+        ...product,
+        retrieval_text: buildRetrievalText(product),
+        source_hash: partial.source_hash,
+      }
 
       enriched.push(withText)
       console.log(`  [${i + 1}/${seeds.length}] ✓ ${seed.title} (${seed.category}/${seed.subtype}) — confidence: ${confidence}`)
@@ -53,8 +57,12 @@ async function main() {
   const embedded = await embedProducts(enriched)
   console.log(`  Embedded ${embedded.length} products (${embedded[0]?.embedding?.length ?? 0} dimensions)\n`)
 
-  // 4. Save catalog
-  await saveCatalog(embedded)
+  // 4. Save catalog with metadata
+  await saveCatalog(embedded, {
+    schema_version: '1.0',
+    embedding_model: 'text-embedding-3-small',
+    enrichment_model: 'claude-sonnet-4.6',
+  })
   console.log('Saved to data/catalog.json\n')
 
   // 5. Summary

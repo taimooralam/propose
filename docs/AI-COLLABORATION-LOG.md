@@ -181,3 +181,12 @@ Each entry records the tool used and a sanitized paraphrase of the original quer
 **Evolution:** Initial refactor used a function named `useOpenRouter()` which triggered ESLint React hooks false positives. Codex review also found that the OpenAI SDK auto-reads `OPENAI_API_KEY` when `apiKey` is undefined, causing the Anthropic fallback client to silently use the wrong credentials.
 **Decision:** Single `openai` SDK package routes through OpenRouter when `OPENROUTER_API_KEY` is set, falls back to direct Anthropic + OpenAI endpoints otherwise. Explicit key validation prevents cross-provider credential leaks. Function signatures unchanged — pure provider swap.
 **Trade-off:** OpenRouter adds a network hop in production but provides single-provider billing and model fallback. Direct SDK fallback preserves local dev and testing workflow.
+
+### NFR Hardening After Architecture Critique — 2026-04-09
+
+**Tool:** Claude + Codex
+**Sanitized Query:** Implement cheap, high-signal reliability patterns identified by architecture review — atomic writes, embedding retry, graceful degradation, catalog versioning, fixture drift fixes.
+**Context:** Cross-provider architecture review found the system treated a git-tracked JSON file as a database without durability, versioning, or degradation behavior. Seven specific fixes were identified as "cheap to implement, high signal for production thinking."
+**Evolution:** The catalog role was clarified: it's a generated build artifact (gitignored), not a committed database. Atomic writes prevent corruption. Catalog metadata tracks schema version, embedding model, enrichment model, and creation timestamp. Per-product source hashes enable idempotent re-enrichment. Embedding calls now have retry parity with chat calls. Slot matching degrades gracefully if embedding service fails. Individual slot failures no longer abort the entire retrieval pipeline.
+**Decision:** Implemented all 7 fixes and documented the full reliability/consistency/observability story in the architecture doc with explicit "current vs production" tables showing what's implemented vs what's documented for scale.
+**Trade-off:** These are lightweight patterns — no database, no queue, no distributed tracing. But they demonstrate awareness of production concerns at the right nuance for a demo-scale assessment.

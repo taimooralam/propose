@@ -1,4 +1,4 @@
-import type { EnrichedProduct, CoverageReport } from '@/schemas'
+import type { EnrichedProduct, CoverageReport, SlotMatch } from '@/schemas'
 import { extractSlots } from './extract-slots'
 import { matchSlot } from './match-slots'
 import { checkCoverage } from './coverage'
@@ -13,10 +13,23 @@ export async function retrieveForRfp(
 ): Promise<CoverageReport> {
   const slots = await extractSlots(rfp)
 
-  // Initial matching — all slots in parallel
-  const matches = await Promise.all(
+  // Initial matching — all slots in parallel, tolerating individual failures
+  const results = await Promise.allSettled(
     slots.map(slot => matchSlot(slot, catalog)),
   )
+
+  const matches: SlotMatch[] = results.map((result, i) => {
+    if (result.status === 'fulfilled') return result.value
+    // Individual slot failure → report as uncovered with error detail
+    return {
+      slot: slots[i],
+      candidates: [],
+      covered: false,
+      gap_reason: 'other' as const,
+      gap_detail: `Matching failed: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
+      relaxed: false,
+    }
+  })
 
   // Gap recovery: retry uncovered required slots with relaxed constraints
   for (let round = 1; round <= MAX_RETRY_ROUNDS; round++) {

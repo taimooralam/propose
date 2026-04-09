@@ -35,6 +35,9 @@ yarn-error.log*
 .env.local
 .env.*.local
 
+# generated artifacts (regenerate with pnpm seed)
+data/catalog.json
+
 # private strategic notes
 raw/
 

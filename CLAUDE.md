@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AI Proposal Intelligence System for Proposales. RFPs → slot-based retrieval → structured proposals via Proposales API. Not flat-document RAG — retrieval unit is `RFP → requirement slots → candidates per slot → coverage check`.
 
-**Stack:** Next.js (App Router), TypeScript, pnpm, Zod, Vitest, Vercel, Proposales v3 API, OpenAI (text-embedding-3-small), Anthropic (Haiku extraction, Sonnet generation/eval), Vercel AI SDK.
+**Stack:** Next.js (App Router), TypeScript, pnpm, Zod, Vitest, Vercel, Proposales v3 API, OpenRouter (chat routing) + OpenAI (embeddings), Sonnet (enrichment/generation), Haiku (per-request extraction).
 
 ## Commands
 
@@ -24,13 +24,13 @@ pnpm seed                                         # Seed + enrich + embed produc
 ## Architecture
 
 ```
-INGESTION:  Products → LLM enrichment (Haiku) → structured sidecar + embeddings → store
+INGESTION:  Products → deterministic pre-parse → Sonnet enrichment → retrieval_text → embeddings → catalog.json
 QUERY:      RFP → slot extraction (Haiku) → metadata filter → vector rank → coverage check → gap recovery
-PIPELINE:   Slots + matches → plan → generate (Sonnet) → assemble via API → self-review
-EVAL:       slot_recall@K, coverage, constraint_violations, coherence
+PIPELINE:   Slots + matches → plan → generate (Sonnet) → assemble via API → self-review (planned)
+EVAL:       slot_recall@K, coverage, constraint_violations, coherence (planned)
 ```
 
-Key directories: `src/server/{clients,ingestion,retrieval,pipeline,evaluation}`, `src/schemas/` (Zod contracts), `app/api/` (routes), `data/{seed,golden}`, `tests/{unit,integration}`, `docs/`.
+Key directories: `src/server/{clients,ingestion,retrieval}`, `src/schemas/` (Zod contracts), `data/seed/` (raw products), `tests/{unit,fixtures}`, `docs/`, `scripts/`.
 
 ## Code Style
 

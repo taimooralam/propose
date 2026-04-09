@@ -63,6 +63,7 @@ export const EnrichedProduct = z.object({
 
   retrieval_text: z.string(),
   embedding: z.array(z.number()).optional(),
+  source_hash: z.string().optional(),
 })
 
 export type EnrichedProduct = z.infer<typeof EnrichedProduct>
