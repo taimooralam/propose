@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test": "vitest",
     "test:run": "vitest run",
-    "seed": "tsx scripts/seed-content.ts"
+    "seed": "tsx --env-file=.env scripts/seed-content.ts"
   },
   "dependencies": {
     "next": "16.2.2",

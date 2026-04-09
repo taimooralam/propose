@@ -1,15 +1,16 @@
 import OpenAI from 'openai'
 import { z } from 'zod'
 
-// --- Model routing (OpenRouter prefixed) ---
-const HAIKU_MODEL = 'anthropic/claude-haiku-4-5-20251001'
-const SONNET_MODEL = 'anthropic/claude-sonnet-4-6-20250514'
-const EMBEDDING_MODEL = 'openai/text-embedding-3-small'
+// --- Model routing (OpenRouter naming) ---
+const HAIKU_MODEL = 'anthropic/claude-haiku-4.5'
+const SONNET_MODEL = 'anthropic/claude-sonnet-4.6'
 
-// --- Direct SDK model IDs (no provider prefix) ---
+// --- Direct SDK model IDs (Anthropic naming) ---
 const HAIKU_MODEL_DIRECT = 'claude-haiku-4-5-20251001'
 const SONNET_MODEL_DIRECT = 'claude-sonnet-4-6-20250514'
-const EMBEDDING_MODEL_DIRECT = 'text-embedding-3-small'
+
+// --- Embedding (always OpenAI direct — OpenRouter doesn't serve embeddings) ---
+const EMBEDDING_MODEL = 'text-embedding-3-small'
 
 // --- Lazy-initialized clients ---
 let _openrouter: OpenAI | null = null
@@ -65,12 +66,9 @@ function getChatClientAndModel(openRouterModel: string, directModel: string): { 
   return { client: getAnthropicDirect(), model: directModel }
 }
 
-/** Get the embedding client and model ID based on available credentials. */
-function getEmbeddingClientAndModel(): { client: OpenAI; model: string } {
-  if (hasOpenRouterKey()) {
-    return { client: getOpenRouter(), model: EMBEDDING_MODEL }
-  }
-  return { client: getOpenAIDirect(), model: EMBEDDING_MODEL_DIRECT }
+/** Get the embedding client — always OpenAI direct (OpenRouter doesn't serve embeddings). */
+function getEmbeddingClient(): OpenAI {
+  return getOpenAIDirect()
 }
 
 // --- Utilities ---
@@ -162,23 +160,25 @@ export async function extractStructuredSonnet<T>(
   return schema.parse(parsed)
 }
 
-/** Embed a single text string. Returns a normalized vector. */
+/** Embed a single text string. Returns a normalized vector.
+ *  Always uses OpenAI directly — OpenRouter doesn't serve embedding models. */
 export async function embedText(text: string): Promise<number[]> {
-  const { client, model } = getEmbeddingClientAndModel()
+  const client = getEmbeddingClient()
   const response = await client.embeddings.create({
-    model,
+    model: EMBEDDING_MODEL,
     input: text,
   })
   return response.data[0].embedding
 }
 
-/** Embed multiple texts in a single batch call. Returns vectors in the same order. */
+/** Embed multiple texts in a single batch call. Returns vectors in the same order.
+ *  Always uses OpenAI directly — OpenRouter doesn't serve embedding models. */
 export async function embedBatch(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return []
 
-  const { client, model } = getEmbeddingClientAndModel()
+  const client = getEmbeddingClient()
   const response = await client.embeddings.create({
-    model,
+    model: EMBEDDING_MODEL,
     input: texts,
   })
 

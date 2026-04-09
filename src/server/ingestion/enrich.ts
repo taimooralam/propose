@@ -6,10 +6,10 @@ const EnrichmentOutput = z.object({
   tags: z.array(z.string()).default([]),
   amenities: z.array(z.string()).default([]),
   dietary_options: z.array(z.string()).default([]),
-  price_model: z.string().optional(),
-  category_override: z.string().optional(),
-  capacity_max_override: z.number().optional(),
-  indoor_outdoor_override: z.enum(['indoor', 'outdoor', 'both', 'n/a']).optional(),
+  price_model: z.string().nullable().optional(),
+  category_override: z.string().nullable().optional(),
+  capacity_max_override: z.number().nullable().optional(),
+  indoor_outdoor_override: z.enum(['indoor', 'outdoor', 'both', 'n/a']).nullable().optional(),
 })
 
 const SYSTEM_PROMPT = `You are a hotel product metadata extractor. You will receive a hotel product with pre-parsed metadata and must extract additional fields and verify existing ones.
