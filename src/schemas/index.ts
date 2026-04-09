@@ -1,6 +1,6 @@
 export { RfpInput } from './rfp'
 export { SlotType, BudgetHint, RequirementSlot } from './slot'
-export { Unit, RawContent, EnrichedProduct } from './product'
+export { Unit, SeedProduct, RawContent, EnrichedProduct } from './product'
 export { RankedCandidate, GapReason, SlotMatch, CoverageReport } from './match'
 export { ProposalBlock, ProposalPlan, ApiProposalBlock, CreateProposalPayload } from './proposal'
 export { EvalFlag, EvalResult } from './evaluation'

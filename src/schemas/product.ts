@@ -11,6 +11,18 @@ export const Unit = z.enum([
 
 export type Unit = z.infer<typeof Unit>
 
+/** Seed product from data/seed/products.json — pre-categorized but not yet enriched. */
+export const SeedProduct = z.object({
+  title: z.string().min(1),
+  description: z.string(),
+  price_cents: z.number().int().nonnegative(),
+  currency: z.string().length(3).default('EUR'),
+  category: SlotType,
+  subtype: z.string(),
+})
+
+export type SeedProduct = z.infer<typeof SeedProduct>
+
 /** Raw content item as returned by the Proposales Content API. */
 export const RawContent = z.object({
   product_id: z.number().int().positive(),

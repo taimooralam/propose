@@ -16,33 +16,89 @@ function getOpenAI(): OpenAI {
 }
 
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001'
+const SONNET_MODEL = 'claude-sonnet-4-6-20250514'
 const EMBEDDING_MODEL = 'text-embedding-3-small'
 
-/** Extract structured data from text using Haiku. Returns parsed output matching the schema. */
+/** Sleep for a given number of milliseconds. */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/** Parse JSON from a model response. Tries full parse first, then regex fallback. */
+function parseJsonResponse(text: string): unknown {
+  // Try parsing the full response as JSON first
+  try {
+    return JSON.parse(text)
+  } catch {
+    // Fallback: extract JSON from markdown or surrounding text
+    const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/)
+    if (!jsonMatch) {
+      throw new Error(`No JSON found in response: ${text.slice(0, 200)}`)
+    }
+    return JSON.parse(jsonMatch[0])
+  }
+}
+
+/** Call Anthropic with retry and exponential backoff. */
+async function callAnthropicWithRetry(
+  model: string,
+  prompt: string,
+  systemPrompt: string,
+  maxRetries = 3,
+): Promise<string> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await getAnthropic().messages.create({
+        model,
+        max_tokens: 4096,
+        temperature: 0,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: prompt }],
+      })
+
+      return response.content
+        .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+        .map(block => block.text)
+        .join('')
+    } catch (err) {
+      if (attempt === maxRetries) throw err
+      const delay = Math.pow(2, attempt) * 1000 // 1s, 2s, 4s
+      console.warn(`Anthropic call failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms...`)
+      await sleep(delay)
+    }
+  }
+  throw new Error('Unreachable')
+}
+
+/** Extract structured data from text using Haiku (fast, cheap — for per-request extraction). */
 export async function extractStructured<T>(
   prompt: string,
   schema: z.ZodType<T>,
   systemPrompt?: string,
 ): Promise<T> {
-  const response = await getAnthropic().messages.create({
-    model: HAIKU_MODEL,
-    max_tokens: 4096,
-    temperature: 0,
-    system: systemPrompt ?? 'You are a precise data extraction assistant. Return only valid JSON matching the requested schema.',
-    messages: [{ role: 'user', content: prompt }],
-  })
+  const text = await callAnthropicWithRetry(
+    HAIKU_MODEL,
+    prompt,
+    systemPrompt ?? 'You are a precise data extraction assistant. Return only valid JSON matching the requested schema.',
+  )
 
-  const text = response.content
-    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-    .map(block => block.text)
-    .join('')
+  const parsed = parseJsonResponse(text)
+  return schema.parse(parsed)
+}
 
-  const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/)
-  if (!jsonMatch) {
-    throw new Error(`No JSON found in Haiku response: ${text.slice(0, 200)}`)
-  }
+/** Extract structured data using Sonnet (higher quality — for one-time enrichment). */
+export async function extractStructuredSonnet<T>(
+  prompt: string,
+  schema: z.ZodType<T>,
+  systemPrompt?: string,
+): Promise<T> {
+  const text = await callAnthropicWithRetry(
+    SONNET_MODEL,
+    prompt,
+    systemPrompt ?? 'You are a precise data extraction assistant. Return only valid JSON matching the requested schema.',
+  )
 
-  const parsed = JSON.parse(jsonMatch[0])
+  const parsed = parseJsonResponse(text)
   return schema.parse(parsed)
 }
 
