@@ -190,3 +190,12 @@ Each entry records the tool used and a sanitized paraphrase of the original quer
 **Evolution:** The catalog role was clarified: it's a generated build artifact (gitignored), not a committed database. Atomic writes prevent corruption. Catalog metadata tracks schema version, embedding model, enrichment model, and creation timestamp. Per-product source hashes enable idempotent re-enrichment. Embedding calls now have retry parity with chat calls. Slot matching degrades gracefully if embedding service fails. Individual slot failures no longer abort the entire retrieval pipeline.
 **Decision:** Implemented all 7 fixes and documented the full reliability/consistency/observability story in the architecture doc with explicit "current vs production" tables showing what's implemented vs what's documented for scale.
 **Trade-off:** These are lightweight patterns — no database, no queue, no distributed tracing. But they demonstrate awareness of production concerns at the right nuance for a demo-scale assessment.
+
+### API Route + UI Implementation — 2026-04-09
+
+**Tool:** Claude + Codex
+**Sanitized Query:** Build the API endpoint and single-page UI showing the full pipeline: RFP input → slot extraction → matching → coverage → proposal plan → evaluation scores.
+**Context:** The retrieval core was complete but invisible — no API, no UI, stock Next.js boilerplate. Cross-provider review recommended a synchronous single-request architecture over async polling (in-memory state unreliable on Vercel serverless).
+**Evolution:** The plan shifted from a two-page async polling architecture to a single-page synchronous flow. One POST request runs the entire pipeline and returns all results. The UI renders six sections in pipeline order: input, extracted slots, per-slot matches with coverage badges, coverage summary with gap reasons, proposal plan table, and evaluation metric tiles. Three preset RFPs match the test fixtures exactly.
+**Decision:** Built: POST /api/run (synchronous full pipeline), thin proposal assembly (top candidate per slot), deterministic evaluation (slot_recall, coverage, violations — no LLM judge), and 6 UI components (feature-based, not pipeline-based). Components use typed props from the API response with no client state management beyond loading/error.
+**Trade-off:** Synchronous execution limits complex RFPs to Vercel's 60s timeout. Production would add Trigger.dev for async execution. Evaluation is deterministic only — LLM coherence scoring deferred.
