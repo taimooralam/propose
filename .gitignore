@@ -36,7 +36,7 @@ yarn-error.log*
 .env.*.local
 
 # generated artifacts (regenerate with pnpm seed)
-data/catalog.json
+# data/catalog.json is committed so Vercel deployment has the enriched catalog
 
 # private strategic notes
 raw/
