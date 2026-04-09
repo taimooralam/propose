@@ -1,36 +1,89 @@
-import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import { z } from 'zod'
 
-let _anthropic: Anthropic | null = null
-let _openai: OpenAI | null = null
+// --- Model routing (OpenRouter prefixed) ---
+const HAIKU_MODEL = 'anthropic/claude-haiku-4-5-20251001'
+const SONNET_MODEL = 'anthropic/claude-sonnet-4-6-20250514'
+const EMBEDDING_MODEL = 'openai/text-embedding-3-small'
 
-function getAnthropic(): Anthropic {
-  if (!_anthropic) _anthropic = new Anthropic()
-  return _anthropic
+// --- Direct SDK model IDs (no provider prefix) ---
+const HAIKU_MODEL_DIRECT = 'claude-haiku-4-5-20251001'
+const SONNET_MODEL_DIRECT = 'claude-sonnet-4-6-20250514'
+const EMBEDDING_MODEL_DIRECT = 'text-embedding-3-small'
+
+// --- Lazy-initialized clients ---
+let _openrouter: OpenAI | null = null
+let _anthropicDirect: OpenAI | null = null
+let _openaiDirect: OpenAI | null = null
+
+function hasOpenRouterKey(): boolean {
+  return !!process.env.OPENROUTER_API_KEY
 }
 
-function getOpenAI(): OpenAI {
-  if (!_openai) _openai = new OpenAI()
-  return _openai
+/** OpenRouter client — single provider for all models in production. */
+function getOpenRouter(): OpenAI {
+  if (!_openrouter) {
+    _openrouter = new OpenAI({
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey: process.env.OPENROUTER_API_KEY,
+    })
+  }
+  return _openrouter
 }
 
-const HAIKU_MODEL = 'claude-haiku-4-5-20251001'
-const SONNET_MODEL = 'claude-sonnet-4-6-20250514'
-const EMBEDDING_MODEL = 'text-embedding-3-small'
+/** Direct Anthropic client via OpenAI-compatible endpoint (fallback for local dev). */
+function getAnthropicDirect(): OpenAI {
+  if (!_anthropicDirect) {
+    const key = process.env.ANTHROPIC_API_KEY
+    if (!key) throw new Error('ANTHROPIC_API_KEY is required when OPENROUTER_API_KEY is not set')
+    _anthropicDirect = new OpenAI({
+      baseURL: 'https://api.anthropic.com/v1/',
+      apiKey: key,
+      defaultHeaders: { 'anthropic-version': '2023-06-01' },
+    })
+  }
+  return _anthropicDirect
+}
 
-/** Sleep for a given number of milliseconds. */
+/** Direct OpenAI client (fallback for local dev). */
+function getOpenAIDirect(): OpenAI {
+  if (!_openaiDirect) {
+    const key = process.env.OPENAI_API_KEY
+    if (!key) throw new Error('OPENAI_API_KEY is required when OPENROUTER_API_KEY is not set')
+    _openaiDirect = new OpenAI({
+      apiKey: key,
+    })
+  }
+  return _openaiDirect
+}
+
+/** Get the chat client and model ID based on available credentials. */
+function getChatClientAndModel(openRouterModel: string, directModel: string): { client: OpenAI; model: string } {
+  if (hasOpenRouterKey()) {
+    return { client: getOpenRouter(), model: openRouterModel }
+  }
+  return { client: getAnthropicDirect(), model: directModel }
+}
+
+/** Get the embedding client and model ID based on available credentials. */
+function getEmbeddingClientAndModel(): { client: OpenAI; model: string } {
+  if (hasOpenRouterKey()) {
+    return { client: getOpenRouter(), model: EMBEDDING_MODEL }
+  }
+  return { client: getOpenAIDirect(), model: EMBEDDING_MODEL_DIRECT }
+}
+
+// --- Utilities ---
+
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 /** Parse JSON from a model response. Tries full parse first, then regex fallback. */
 function parseJsonResponse(text: string): unknown {
-  // Try parsing the full response as JSON first
   try {
     return JSON.parse(text)
   } catch {
-    // Fallback: extract JSON from markdown or surrounding text
     const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/)
     if (!jsonMatch) {
       throw new Error(`No JSON found in response: ${text.slice(0, 200)}`)
@@ -39,36 +92,41 @@ function parseJsonResponse(text: string): unknown {
   }
 }
 
-/** Call Anthropic with retry and exponential backoff. */
-async function callAnthropicWithRetry(
-  model: string,
+/** Call a chat model with retry and exponential backoff. */
+async function callChatWithRetry(
+  openRouterModel: string,
+  directModel: string,
   prompt: string,
   systemPrompt: string,
   maxRetries = 3,
 ): Promise<string> {
+  const { client, model } = getChatClientAndModel(openRouterModel, directModel)
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const response = await getAnthropic().messages.create({
+      const response = await client.chat.completions.create({
         model,
         max_tokens: 4096,
         temperature: 0,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: prompt }],
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt },
+        ],
       })
 
-      return response.content
-        .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-        .map(block => block.text)
-        .join('')
+      return response.choices[0]?.message?.content ?? ''
     } catch (err) {
       if (attempt === maxRetries) throw err
-      const delay = Math.pow(2, attempt) * 1000 // 1s, 2s, 4s
-      console.warn(`Anthropic call failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms...`)
+      const delay = Math.pow(2, attempt) * 1000
+      const provider = hasOpenRouterKey() ? 'OpenRouter' : 'direct'
+      console.warn(`${provider} call failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms...`)
       await sleep(delay)
     }
   }
   throw new Error('Unreachable')
 }
+
+// --- Public API (function signatures unchanged) ---
 
 /** Extract structured data from text using Haiku (fast, cheap — for per-request extraction). */
 export async function extractStructured<T>(
@@ -76,8 +134,9 @@ export async function extractStructured<T>(
   schema: z.ZodType<T>,
   systemPrompt?: string,
 ): Promise<T> {
-  const text = await callAnthropicWithRetry(
+  const text = await callChatWithRetry(
     HAIKU_MODEL,
+    HAIKU_MODEL_DIRECT,
     prompt,
     systemPrompt ?? 'You are a precise data extraction assistant. Return only valid JSON matching the requested schema.',
   )
@@ -92,8 +151,9 @@ export async function extractStructuredSonnet<T>(
   schema: z.ZodType<T>,
   systemPrompt?: string,
 ): Promise<T> {
-  const text = await callAnthropicWithRetry(
+  const text = await callChatWithRetry(
     SONNET_MODEL,
+    SONNET_MODEL_DIRECT,
     prompt,
     systemPrompt ?? 'You are a precise data extraction assistant. Return only valid JSON matching the requested schema.',
   )
@@ -104,8 +164,9 @@ export async function extractStructuredSonnet<T>(
 
 /** Embed a single text string. Returns a normalized vector. */
 export async function embedText(text: string): Promise<number[]> {
-  const response = await getOpenAI().embeddings.create({
-    model: EMBEDDING_MODEL,
+  const { client, model } = getEmbeddingClientAndModel()
+  const response = await client.embeddings.create({
+    model,
     input: text,
   })
   return response.data[0].embedding
@@ -115,8 +176,9 @@ export async function embedText(text: string): Promise<number[]> {
 export async function embedBatch(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return []
 
-  const response = await getOpenAI().embeddings.create({
-    model: EMBEDDING_MODEL,
+  const { client, model } = getEmbeddingClientAndModel()
+  const response = await client.embeddings.create({
+    model,
     input: texts,
   })
 

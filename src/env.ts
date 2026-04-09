@@ -3,6 +3,7 @@ import { z } from 'zod'
 const envSchema = z.object({
   PROPOSALES_API_KEY: z.string().min(1),
   PROPOSALES_COMPANY_ID: z.string().min(1).default('5265'),
+  OPENROUTER_API_KEY: z.string().min(1).optional(),
   OPENAI_API_KEY: z.string().min(1).optional(),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
 })
