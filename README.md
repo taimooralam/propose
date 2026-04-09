@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Propose — AI Proposal Intelligence System
 
-## Getting Started
+Slot-based retrieval system that turns unstructured hotel event RFPs into structured proposals. Not flat-document RAG — the retrieval unit is `RFP → requirement slots → candidates per slot → coverage check`.
 
-First, run the development server:
+**What ships:**
+- Slot extraction from RFPs via Haiku (typed `RequirementSlot` with category, capacity, constraints)
+- Per-slot product matching with hard filtering (category, capacity, indoor/outdoor) + dense ranking
+- Coverage verification with typed gap reasons and 2-round constraint relaxation
+- Thin proposal assembly (top candidate per slot)
+- Deterministic evaluation: `slot_recall@3`, `full_coverage`, `constraint_violation_rate`
+- Two-stage enrichment pipeline: deterministic pre-parsing + Sonnet extraction with confidence scoring
+
+Functional TypeScript, Zod contracts at every boundary, no ORM, retrieval core in small pure modules.
+
+## Review Path
+
+| What | Where |
+|---|---|
+| System design + retrieval strategy | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Retrieval core | [src/server/retrieval/](src/server/retrieval/) — `extract-slots.ts` → `match-slots.ts` → `coverage.ts` |
+| Enrichment pipeline | [src/server/ingestion/](src/server/ingestion/) — `pre-parse.ts` → `enrich.ts` → `embed.ts` |
+| Zod contracts | [src/schemas/](src/schemas/) — `slot.ts`, `product.ts`, `match.ts` |
+| Tests (TDD) | [tests/unit/](tests/unit/) — 94 tests across 9 files |
+| AI collaboration log | [docs/AI-COLLABORATION-LOG.md](docs/AI-COLLABORATION-LOG.md) |
+
+## Quick Start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+cp .env.example .env
+# Add to .env:
+#   OPENROUTER_API_KEY (or ANTHROPIC_API_KEY) — for slot extraction
+#   OPENAI_API_KEY — for embeddings
+pnpm seed            # Optional: re-enrich products (~4 min, requires API keys)
+pnpm dev             # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The app loads a pre-generated enriched catalog. `pnpm seed` is only needed to re-run the enrichment pipeline.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Try it:** Open http://localhost:3000, click a preset RFP (Simple Meeting, Product Launch, or Wedding), and click "Analyse RFP."
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Current Scope and Limitations
 
-## Learn More
+**Implemented:**
+- Full retrieval pipeline: slot extraction → hard filter → dense rank → coverage → gap recovery
+- Enrichment: two-stage (deterministic pre-parse + Sonnet LLM), 29 products across 9 categories
+- API route: synchronous single-request execution
+- UI: single-page flow showing slots → matches → coverage → proposal → scores
 
-To learn more about Next.js, take a look at the following resources:
+**Intentionally deferred (documented in [ARCHITECTURE.md](docs/ARCHITECTURE.md#trade-offs-and-scope-decisions)):**
+- Proposales API proposal creation (thin local assembly instead)
+- LLM coherence scoring (deterministic metrics only)
+- Streaming/async execution (synchronous within Vercel 60s timeout)
+- Postgres + pgvector (JSON catalog sufficient for 29 products)
+- Trigger.dev async orchestration
+- MCP server wrapping Proposales API
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Command | Description |
+|---|---|
+| `pnpm dev` | Start development server |
+| `pnpm build` | Production build |
+| `pnpm test:run` | Run 94 unit tests |
+| `pnpm seed` | Re-run enrichment pipeline (requires API keys, ~4 min) |
+| `pnpm lint` | ESLint |
