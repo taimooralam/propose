@@ -3,6 +3,8 @@ import { RfpInput } from '@/schemas'
 import { loadCatalog } from '@/server/ingestion/store'
 import { retrieveForRfp } from '@/server/retrieval'
 import { assembleThinProposal } from '@/server/pipeline/assemble-thin'
+import { generateProposalBlocks } from '@/server/pipeline/generate-blocks'
+import { createProposal, toApiProposalPayload } from '@/server/clients/proposales'
 import { computeEvalScores } from '@/server/evaluation/heuristic'
 
 export const maxDuration = 60 // Vercel Pro timeout
@@ -28,12 +30,39 @@ export async function POST(request: Request) {
     const coverage = await retrieveForRfp(input.text, catalog)
 
     // 4. Thin proposal assembly (pick top candidate per slot)
-    const plan = assembleThinProposal(input.text.slice(0, 200), coverage)
+    const thinPlan = assembleThinProposal(input.text.slice(0, 200), coverage)
 
-    // 5. Deterministic evaluation scores
+    // 5. LLM block generation (Sonnet writes content per block)
+    let plan = thinPlan
+    try {
+      plan = await generateProposalBlocks(input.text, thinPlan)
+    } catch (err) {
+      console.warn('Block generation failed, using thin assembly:', err instanceof Error ? err.message : String(err))
+    }
+
+    // 6. Create proposal via Proposales API (optional — needs PROPOSALES_API_KEY)
+    let proposalUuid: string | undefined
+    let proposalUrl: string | undefined
+    if (process.env.PROPOSALES_API_KEY) {
+      try {
+        const companyId = parseInt(process.env.PROPOSALES_COMPANY_ID ?? '5265')
+        const payload = toApiProposalPayload(plan, {
+          companyId,
+          titleMd: `Proposal: ${input.text.slice(0, 80)}...`,
+          descriptionMd: plan.rfp_summary,
+        })
+        const result = await createProposal(payload)
+        proposalUuid = result.uuid
+        proposalUrl = result.url
+      } catch (err) {
+        console.warn('Proposales API call failed:', err instanceof Error ? err.message : String(err))
+      }
+    }
+
+    // 7. Deterministic evaluation scores
     const evaluation = computeEvalScores(coverage)
 
-    // 6. Build response
+    // 8. Build response
     const latencyMs = Date.now() - startTime
 
     return NextResponse.json({
@@ -41,11 +70,15 @@ export async function POST(request: Request) {
       slots: coverage.matches.map(m => m.slot),
       coverage,
       plan,
+      proposal_uuid: proposalUuid,
+      proposal_url: proposalUrl,
       evaluation,
       meta: {
         latency_ms: latencyMs,
         catalog_size: catalog.length,
         slot_count: coverage.matches.length,
+        blocks_generated: plan.blocks.length,
+        proposal_created: !!proposalUuid,
       },
     })
   } catch (err) {

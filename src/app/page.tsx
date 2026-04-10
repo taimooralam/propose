@@ -20,14 +20,18 @@ interface PipelineResult {
   }
   plan: {
     rfp_summary: string
-    blocks: { slot: unknown; product: { title: string; price_cents?: number; currency: string }; quantity: number; unit_value_cents: number }[]
+    blocks: { slot: unknown; product: { title: string; price_cents?: number; currency: string }; content_md: string; quantity: number; unit_value_cents: number }[]
     gap_notes: string[]
   }
+  proposal_uuid?: string
+  proposal_url?: string
   evaluation: unknown
   meta: {
     latency_ms: number
     catalog_size: number
     slot_count: number
+    blocks_generated?: number
+    proposal_created?: boolean
   }
 }
 
@@ -114,38 +118,51 @@ export default function Home() {
             <CoverageSummary coverage={result.coverage as never} />
           </section>
 
-          {/* Proposal Plan */}
+          {/* Proposal */}
           <section>
-            <h2 className="text-lg font-semibold mb-3">Proposal Plan</h2>
-            <div className="border border-zinc-200 rounded-lg overflow-hidden dark:border-zinc-700">
-              <table className="w-full text-sm">
-                <thead className="bg-zinc-50 dark:bg-zinc-800">
-                  <tr>
-                    <th className="px-4 py-2 text-left font-medium">Slot</th>
-                    <th className="px-4 py-2 text-left font-medium">Product</th>
-                    <th className="px-4 py-2 text-right font-medium">Qty</th>
-                    <th className="px-4 py-2 text-right font-medium">Unit Price</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.plan.blocks.map((block, i) => (
-                    <tr key={i} className="border-t border-zinc-100 dark:border-zinc-800">
-                      <td className="px-4 py-2">{(block.slot as { type: string }).type}</td>
-                      <td className="px-4 py-2">{block.product.title}</td>
-                      <td className="px-4 py-2 text-right">{block.quantity}</td>
-                      <td className="px-4 py-2 text-right font-mono">
-                        {block.product.currency} {(block.unit_value_cents / 100).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {result.plan.gap_notes.length > 0 && (
-                <div className="px-4 py-2 bg-red-50 text-sm text-red-700 border-t dark:bg-red-950 dark:text-red-300 dark:border-red-800">
-                  <strong>Gaps:</strong> {result.plan.gap_notes.join(' · ')}
-                </div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">Generated Proposal</h2>
+              {result.proposal_url && (
+                <a
+                  href={result.proposal_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  View in Proposales &rarr;
+                </a>
               )}
             </div>
+            {result.meta.proposal_created && (
+              <p className="text-xs text-green-600 mb-3 dark:text-green-400">
+                Proposal created via Proposales API (UUID: {result.proposal_uuid})
+              </p>
+            )}
+            <div className="space-y-3">
+              {result.plan.blocks.map((block, i) => (
+                <div key={i} className="p-4 border border-zinc-200 rounded-lg dark:border-zinc-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs px-2 py-0.5 bg-zinc-100 rounded dark:bg-zinc-800">
+                        {(block.slot as { type: string }).type}
+                      </span>
+                      <span className="font-medium text-sm">{block.product.title}</span>
+                    </div>
+                    <span className="text-xs text-zinc-500 font-mono">
+                      {block.quantity} &times; {block.product.currency} {(block.unit_value_cents / 100).toFixed(2)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
+                    {block.content_md}
+                  </p>
+                </div>
+              ))}
+            </div>
+            {result.plan.gap_notes.length > 0 && (
+              <div className="mt-3 p-3 bg-red-50 text-sm text-red-700 rounded-lg border border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800">
+                <strong>Gaps:</strong> {result.plan.gap_notes.join(' · ')}
+              </div>
+            )}
           </section>
 
           {/* Evaluation Scores */}
