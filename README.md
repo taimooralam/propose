@@ -1,5 +1,7 @@
 # Propose — AI Proposal Intelligence System
 
+**Live demo:** https://propose-taimoor.vercel.app
+
 Slot-based retrieval system that turns unstructured hotel event RFPs into structured proposals via the Proposales API. Not flat-document RAG — the retrieval unit is `RFP → requirement slots → candidates per slot → coverage check`.
 
 **What ships:**
