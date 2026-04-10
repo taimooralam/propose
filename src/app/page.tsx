@@ -7,6 +7,7 @@ import { SlotCards } from '@/ui/slot-cards'
 import { MatchResults } from '@/ui/match-results'
 import { CoverageSummary } from '@/ui/coverage-summary'
 import { EvalScores } from '@/ui/eval-scores'
+import { ProgressIndicator } from '@/ui/progress-indicator'
 
 interface PipelineResult {
   status: string
@@ -106,6 +107,9 @@ export default function Home() {
         </div>
         <RfpInput onSubmit={handleSubmit} loading={loading} />
       </section>
+
+      {/* Progress Indicator */}
+      <ProgressIndicator running={loading} fullMode={fullMode} />
 
       {/* Error */}
       {error && (
