@@ -7,11 +7,14 @@ import { generateProposalBlocks } from '@/server/pipeline/generate-blocks'
 import { createProposal, toApiProposalPayload } from '@/server/clients/proposales'
 import { selfReviewProposal } from '@/server/pipeline/self-review'
 import { evaluateProposal } from '@/server/evaluation'
+import { computeEvalScores } from '@/server/evaluation/heuristic'
 
 export const maxDuration = 60 // Vercel Pro timeout
 
 export async function POST(request: Request) {
   const startTime = Date.now()
+  const url = new URL(request.url)
+  const fullMode = url.searchParams.get('mode') === 'full'
 
   try {
     // 1. Validate input
@@ -33,18 +36,20 @@ export async function POST(request: Request) {
     // 4. Thin proposal assembly (pick top candidate per slot)
     const thinPlan = assembleThinProposal(input.text.slice(0, 200), coverage)
 
-    // 5. LLM block generation (Sonnet writes content per block)
+    // 5. LLM block generation (Sonnet — only in full mode to avoid timeout)
     let plan = thinPlan
-    try {
-      plan = await generateProposalBlocks(input.text, thinPlan)
-    } catch (err) {
-      console.warn('Block generation failed, using thin assembly:', err instanceof Error ? err.message : String(err))
+    if (fullMode) {
+      try {
+        plan = await generateProposalBlocks(input.text, thinPlan)
+      } catch (err) {
+        console.warn('Block generation failed, using thin assembly:', err instanceof Error ? err.message : String(err))
+      }
     }
 
     // 6. Create proposal via Proposales API (optional — needs PROPOSALES_API_KEY)
     let proposalUuid: string | undefined
     let proposalUrl: string | undefined
-    if (process.env.PROPOSALES_API_KEY) {
+    if (process.env.PROPOSALES_API_KEY && fullMode) {
       try {
         const companyId = parseInt(process.env.PROPOSALES_COMPANY_ID ?? '5265')
         const payload = toApiProposalPayload(plan, {
@@ -60,29 +65,39 @@ export async function POST(request: Request) {
       }
     }
 
-    // 7. Self-review: compare proposal against original RFP
+    // 7. Self-review (Sonnet — only in full mode)
     let review = undefined
-    try {
-      review = await selfReviewProposal(input.text, plan)
-    } catch (err) {
-      console.warn('Self-review failed:', err instanceof Error ? err.message : String(err))
+    if (fullMode) {
+      try {
+        review = await selfReviewProposal(input.text, plan)
+      } catch (err) {
+        console.warn('Self-review failed:', err instanceof Error ? err.message : String(err))
+      }
     }
 
-    // 8. Full evaluation: deterministic + heuristic + LLM coherence
+    // 8. Evaluation
     const slots = coverage.matches.map(m => m.slot)
-    const evaluation = await evaluateProposal({
-      rfp: input.text,
-      coverage,
-      slots,
-      plan,
-      review: review ?? undefined,
-    })
+    let evaluation
+    if (fullMode) {
+      // Full: deterministic + heuristic + LLM coherence
+      evaluation = await evaluateProposal({
+        rfp: input.text,
+        coverage,
+        slots,
+        plan,
+        review: review ?? undefined,
+      })
+    } else {
+      // Fast: deterministic only (no Sonnet calls)
+      evaluation = computeEvalScores(coverage)
+    }
 
-    // 8. Build response
+    // 9. Build response
     const latencyMs = Date.now() - startTime
 
     return NextResponse.json({
       status: 'complete',
+      mode: fullMode ? 'full' : 'fast',
       slots,
       coverage,
       plan,

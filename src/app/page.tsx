@@ -45,6 +45,7 @@ export default function Home() {
   const [result, setResult] = useState<PipelineResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [fullMode, setFullMode] = useState(false)
 
   async function handleSubmit(rfp: string) {
     setLoading(true)
@@ -52,7 +53,8 @@ export default function Home() {
     setResult(null)
 
     try {
-      const res = await fetch('/api/run', {
+      const endpoint = fullMode ? '/api/run?mode=full' : '/api/run'
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: rfp }),
@@ -84,7 +86,21 @@ export default function Home() {
 
       {/* Input Section */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold mb-3">RFP Input</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold">RFP Input</h2>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={fullMode}
+              onChange={e => setFullMode(e.target.checked)}
+              className="rounded"
+              disabled={loading}
+            />
+            <span className="text-zinc-600 dark:text-zinc-400">
+              Full pipeline <span className="text-xs">(Sonnet generation + review + coherence — slower)</span>
+            </span>
+          </label>
+        </div>
         <RfpInput onSubmit={handleSubmit} loading={loading} />
       </section>
 
