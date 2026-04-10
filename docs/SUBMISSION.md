@@ -3,7 +3,7 @@
 ## Deliverables
 
 1. **Working web application (Vercel)**
-   https://propose-m550w2t6q-taimoor-alams-projects-33f72f51.vercel.app
+   https://propose-taimoor.vercel.app
 
    - Main page: paste an RFP or select a preset (Simple Meeting, Product Launch, Wedding) → see extracted requirement slots, per-slot product matches with similarity scores, coverage report with typed gap reasons, generated proposal blocks, and evaluation scores
    - Ingestion dashboard (`/ingestion`): browse the enriched product catalog with a raw → enriched comparison per product, showing exactly what the two-stage enrichment pipeline added — deterministic pre-parsing (capacity, unit, indoor/outdoor) and Sonnet extraction (tags, amenities, dietary options, price model)
