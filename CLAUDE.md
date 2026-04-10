@@ -26,11 +26,11 @@ pnpm seed                                         # Seed + enrich + embed produc
 ```
 INGESTION:  Products → deterministic pre-parse → Sonnet enrichment → retrieval_text → embeddings → catalog.json
 QUERY:      RFP → slot extraction (Haiku) → metadata filter → vector rank → coverage check → gap recovery
-PIPELINE:   Slots + matches → plan → generate (Sonnet) → assemble via API → self-review (planned)
-EVAL:       slot_recall@K, coverage, constraint_violations, coherence (planned)
+PIPELINE:   Slots + matches → plan → generate per block (Sonnet) → assemble via Proposales API → self-review (Sonnet)
+EVAL:       slot_recall@K + coverage + heuristic validation (dates, guests) + LLM coherence (Sonnet)
 ```
 
-Key directories: `src/server/{clients,ingestion,retrieval}`, `src/schemas/` (Zod contracts), `data/seed/` (raw products), `tests/{unit,fixtures}`, `docs/`, `scripts/`.
+Key directories: `src/server/{clients,ingestion,retrieval,pipeline,evaluation}`, `src/schemas/` (Zod contracts), `src/app/api/{run,catalog}` (routes), `src/app/ingestion/` (dashboard), `data/{seed,golden}`, `tests/{unit,fixtures}`, `docs/`, `scripts/`.
 
 ## Code Style
 

@@ -199,3 +199,19 @@ Each entry records the tool used and a sanitized paraphrase of the original quer
 **Evolution:** The plan shifted from a two-page async polling architecture to a single-page synchronous flow. One POST request runs the entire pipeline and returns all results. The UI renders six sections in pipeline order: input, extracted slots, per-slot matches with coverage badges, coverage summary with gap reasons, proposal plan table, and evaluation metric tiles. Three preset RFPs match the test fixtures exactly.
 **Decision:** Built: POST /api/run (synchronous full pipeline), thin proposal assembly (top candidate per slot), deterministic evaluation (slot_recall, coverage, violations — no LLM judge), and 6 UI components (feature-based, not pipeline-based). Components use typed props from the API response with no client state management beyond loading/error.
 **Trade-off:** Synchronous execution limits complex RFPs to Vercel's 60s timeout. Production would add Trigger.dev for async execution. Evaluation is deterministic only — LLM coherence scoring deferred.
+
+### Agentic Pipeline Completion — 2026-04-10
+
+**Tool:** Claude + Codex
+**Sanitized Query:** Close all remaining assessment gaps: Proposales API integration, LLM block generation, self-review, LLM coherence scoring, ingestion UI with raw→enriched comparison, heuristic validation, golden test sets.
+**Context:** Cross-provider review identified 8 gaps between the current implementation and the assessment requirements. The plan was to build all 8 in optimal order for maximum cumulative assessment impact.
+**Evolution:** Built in two phases. Phase A added the agentic proposal pipeline: Sonnet generates per-block content with RFP context, proposal is created via POST /v3/proposals, graceful fallback to thin assembly if generation fails. Phase B added evaluation depth: heuristic validation checks dates and guest counts, self-review compares proposal against original RFP and flags mismatches, LLM coherence scoring rates completeness/relevance/coherence/professionalism. A fast/full mode toggle was added for Vercel Hobby timeout compatibility — fast mode runs extraction + matching + deterministic eval (~3s), full mode adds Sonnet generation + API + review + coherence (~40s).
+**Decision:** All 8 gaps closed. Pipeline now has all 5 agentic steps from the assessment: extract → plan → generate → assemble via API → self-review. Evaluation combines three layers: deterministic metrics, heuristic validation, and LLM coherence. Ingestion dashboard shows raw→enriched comparison per product with pipeline stages color-coded. Golden test sets created for all 3 assessment RFPs.
+**Trade-off:** Full pipeline mode exceeds Vercel Hobby 10s timeout. Fast mode provides instant results while full mode demonstrates the complete agentic architecture locally or on Vercel Pro.
+
+### Final Documentation Alignment — 2026-04-10
+
+**Tool:** Claude
+**Sanitized Query:** Update all documentation to honestly reflect what is implemented vs what is planned.
+**Context:** Multiple implementation phases had added features without updating CLAUDE.md, README, or ARCHITECTURE.md. Documents still referenced "planned" features that were now built, and missed new features entirely.
+**Decision:** Final pass updating README (what ships, review path, pipeline modes, scope), CLAUDE.md (architecture diagram, directory listing), and AI collaboration log with entries for all implementation phases. All "(planned)" labels removed for features that are now implemented.
