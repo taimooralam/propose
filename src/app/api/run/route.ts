@@ -5,7 +5,8 @@ import { retrieveForRfp } from '@/server/retrieval'
 import { assembleThinProposal } from '@/server/pipeline/assemble-thin'
 import { generateProposalBlocks } from '@/server/pipeline/generate-blocks'
 import { createProposal, toApiProposalPayload } from '@/server/clients/proposales'
-import { computeEvalScores } from '@/server/evaluation/heuristic'
+import { selfReviewProposal } from '@/server/pipeline/self-review'
+import { evaluateProposal } from '@/server/evaluation'
 
 export const maxDuration = 60 // Vercel Pro timeout
 
@@ -59,17 +60,33 @@ export async function POST(request: Request) {
       }
     }
 
-    // 7. Deterministic evaluation scores
-    const evaluation = computeEvalScores(coverage)
+    // 7. Self-review: compare proposal against original RFP
+    let review = undefined
+    try {
+      review = await selfReviewProposal(input.text, plan)
+    } catch (err) {
+      console.warn('Self-review failed:', err instanceof Error ? err.message : String(err))
+    }
+
+    // 8. Full evaluation: deterministic + heuristic + LLM coherence
+    const slots = coverage.matches.map(m => m.slot)
+    const evaluation = await evaluateProposal({
+      rfp: input.text,
+      coverage,
+      slots,
+      plan,
+      review: review ?? undefined,
+    })
 
     // 8. Build response
     const latencyMs = Date.now() - startTime
 
     return NextResponse.json({
       status: 'complete',
-      slots: coverage.matches.map(m => m.slot),
+      slots,
       coverage,
       plan,
+      review,
       proposal_uuid: proposalUuid,
       proposal_url: proposalUrl,
       evaluation,

@@ -23,6 +23,12 @@ interface PipelineResult {
     blocks: { slot: unknown; product: { title: string; price_cents?: number; currency: string }; content_md: string; quantity: number; unit_value_cents: number }[]
     gap_notes: string[]
   }
+  review?: {
+    summary: string
+    findings: { severity: string; category: string; description: string }[]
+    requirements_met: number
+    overall_quality: string
+  }
   proposal_uuid?: string
   proposal_url?: string
   evaluation: unknown
@@ -164,6 +170,45 @@ export default function Home() {
               </div>
             )}
           </section>
+
+          {/* Self-Review */}
+          {result.review && (
+            <section>
+              <h2 className="text-lg font-semibold mb-3">Self-Review</h2>
+              <div className="p-4 border border-zinc-200 rounded-lg dark:border-zinc-700">
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`px-2 py-1 text-xs rounded font-medium ${
+                    result.review.overall_quality === 'excellent' ? 'bg-green-100 text-green-800' :
+                    result.review.overall_quality === 'good' ? 'bg-blue-100 text-blue-800' :
+                    result.review.overall_quality === 'adequate' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {result.review.overall_quality}
+                  </span>
+                  <span className="text-sm text-zinc-500">
+                    {Math.round(result.review.requirements_met * 100)}% requirements met
+                  </span>
+                </div>
+                <p className="text-sm text-zinc-700 dark:text-zinc-300 mb-3">{result.review.summary}</p>
+                {result.review.findings.length > 0 && (
+                  <ul className="space-y-1">
+                    {result.review.findings.map((f, i) => (
+                      <li key={i} className="text-sm flex items-start gap-2">
+                        <span className={`mt-0.5 text-xs px-1.5 py-0.5 rounded ${
+                          f.severity === 'critical' ? 'bg-red-100 text-red-700' :
+                          f.severity === 'warning' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-zinc-100 text-zinc-600'
+                        }`}>
+                          {f.severity}
+                        </span>
+                        <span className="text-zinc-600 dark:text-zinc-400">{f.description}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </section>
+          )}
 
           {/* Evaluation Scores */}
           <section>
