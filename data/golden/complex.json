@@ -1,0 +1,8 @@
+{
+  "name": "complex",
+  "description": "3-day destination wedding for 120 guests with accommodation, spa, floral, entertainment, dietary",
+  "expected_slot_count": 12,
+  "expected_slot_types": ["venue", "venue", "venue", "venue", "venue", "venue", "accommodation", "accommodation", "activity", "decoration", "entertainment", "catering", "dietary"],
+  "minimum_coverage": 0.7,
+  "notes": "Some gaps expected — catalog has limited accommodation options and may not cover all wedding-specific venues"
+}

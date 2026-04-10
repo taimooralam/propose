@@ -82,6 +82,9 @@ export default function Home() {
         <p className="text-zinc-600 dark:text-zinc-400 mt-1">
           Slot-based retrieval for hotel event proposals. Paste an RFP to extract requirements, match products, and evaluate coverage.
         </p>
+        <a href="/ingestion" className="text-sm text-blue-600 hover:underline dark:text-blue-400">
+          View enriched catalog &rarr;
+        </a>
       </header>
 
       {/* Input Section */}

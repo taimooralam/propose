@@ -1,0 +1,8 @@
+{
+  "name": "medium",
+  "description": "80-guest product launch with main venue, 2 breakout rooms, lunch, coffee, AV, WiFi, registration",
+  "expected_slot_count": 8,
+  "expected_slot_types": ["venue", "venue", "venue", "catering", "catering", "av_equipment", "service", "service"],
+  "minimum_coverage": 1.0,
+  "notes": "All slots should be covered. Multiple venue slots for main + breakout rooms"
+}

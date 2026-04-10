@@ -1,0 +1,8 @@
+{
+  "name": "simple",
+  "description": "12-person board meeting with lunch, coffee, projector",
+  "expected_slot_count": 4,
+  "expected_slot_types": ["venue", "catering", "catering", "av_equipment"],
+  "minimum_coverage": 1.0,
+  "notes": "All slots should be fully covered by the 29-product catalog"
+}
